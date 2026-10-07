@@ -1,0 +1,437 @@
+:root {
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #f5f5f5;
+  background: #0b0b0c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+.container {
+  width: min(1100px, calc(100% - 40px));
+  margin: auto;
+  padding: 50px 0;
+}
+
+header,
+.section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.eyebrow {
+  margin-bottom: 8px;
+  color: #888;
+  font-size: 12px;
+  letter-spacing: .16em;
+}
+
+h1 {
+  margin: 0 0 8px;
+  font-size: clamp(34px, 6vw, 64px);
+}
+
+h2 {
+  margin: 0;
+}
+
+.muted {
+  color: #8d8d92;
+}
+
+button,
+input {
+  border: 1px solid #2b2b2f;
+  border-radius: 10px;
+  background: #141416;
+  color: #fff;
+  padding: 12px 14px;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:hover {
+  background: #1c1c20;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin: 35px 0 18px;
+}
+
+.card {
+  border: 1px solid #242428;
+  border-radius: 18px;
+  padding: 22px;
+  background: #101012;
+}
+
+.card > span {
+  color: #888;
+  font-size: 13px;
+}
+
+.card > strong {
+  display: block;
+  margin-top: 10px;
+  font-size: 28px;
+}
+
+.project-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.projects {
+  display: grid;
+  gap: 10px;
+}
+
+.project {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 20px;
+  padding: 18px;
+  border: 1px solid #242428;
+  border-radius: 14px;
+}
+
+.project-info strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.project-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.project-info:hover {
+  background: transparent;
+}
+
+.project-info small {
+  color: #777;
+}
+
+.project-info-text {
+  min-width: 0;
+}
+
+.project-chevron {
+  color: #a5b4fc;
+  font-size: 20px;
+}
+
+.project-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.project-expanded {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 14px;
+  border-top: 1px solid #242428;
+}
+
+.project-expanded > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.project-expanded span {
+  color: #85858d;
+  font-size: 12px;
+}
+
+.project-expanded strong {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.project-expanded > button {
+  justify-self: start;
+}
+
+.file-manager {
+  margin-top: 18px;
+}
+
+.github-import {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0;
+}
+
+.github-import label {
+  color: #d4d4d8;
+  font-size: 14px;
+}
+
+.github-import-control {
+  display: flex;
+  gap: 8px;
+}
+
+.github-import-control input {
+  flex: 1;
+  min-width: 0;
+}
+
+.github-import small {
+  color: #85858d;
+  line-height: 1.5;
+}
+
+.github-connected {
+  color: #a5b4fc;
+  overflow-wrap: anywhere;
+}
+
+.file-message {
+  min-height: 20px;
+  color: #a5b4fc;
+}
+
+.file-message.error {
+  color: #fca5a5;
+}
+
+.file-tree {
+  display: grid;
+  gap: 6px;
+}
+
+.file-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(80px, 120px) minmax(130px, 200px) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #242428;
+  border-radius: 10px;
+}
+
+.file-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.file-meta {
+  color: #85858d;
+  font-size: 12px;
+}
+
+.file-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.file-actions button,
+.file-actions a {
+  padding: 7px 10px;
+  border: 1px solid #2b2b2f;
+  border-radius: 8px;
+  background: #141416;
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.environment-modal {
+  width: min(760px, calc(100% - 28px));
+  max-height: min(85vh, 760px);
+  padding: 24px;
+  border: 1px solid #34343a;
+  border-radius: 18px;
+  background: #101012;
+  color: #f5f5f5;
+}
+
+.environment-modal::backdrop {
+  background: rgb(0 0 0 / 72%);
+  backdrop-filter: blur(3px);
+}
+
+.environment-modal form {
+  display: grid;
+  gap: 14px;
+}
+
+.environment-description,
+.environment-columns {
+  color: #9999a2;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.environment-columns,
+.environment-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(180px, 1.5fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.environment-rows {
+  display: grid;
+  gap: 9px;
+  max-height: 45vh;
+  overflow: auto;
+}
+
+.environment-row-actions,
+.environment-footer {
+  display: flex;
+  gap: 8px;
+}
+
+.environment-footer {
+  justify-content: flex-end;
+}
+
+.danger-button {
+  border-color: #713838;
+  color: #fecaca;
+}
+
+.danger-button:hover {
+  background: #361b1b;
+}
+
+.commit-list {
+  display: grid;
+  gap: 9px;
+  max-height: 55vh;
+  overflow: auto;
+}
+
+.commit-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #242428;
+  border-radius: 10px;
+}
+
+.commit-details {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.commit-details strong {
+  overflow-wrap: anywhere;
+}
+
+.commit-details small {
+  color: #85858d;
+}
+
+.logs-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.logs-output {
+  min-height: 280px;
+  max-height: 60vh;
+  margin: 0;
+  padding: 15px;
+  overflow: auto;
+  border: 1px solid #242428;
+  border-radius: 10px;
+  background: #080809;
+  color: #d4d4d8;
+  font: 12px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+  .environment-modal {
+    padding: 18px;
+  }
+
+  .environment-columns {
+    display: none;
+  }
+
+  .environment-row {
+    grid-template-columns: 1fr;
+    padding: 12px;
+    border: 1px solid #242428;
+    border-radius: 10px;
+  }
+}
+
+@media (max-width: 800px) {
+  .stats-grid,
+  .project-form {
+    grid-template-columns: 1fr;
+  }
+
+  .project {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+  }
+
+  .project-actions {
+    justify-content: flex-start;
+  }
+
+  .project-expanded {
+    grid-column: 1;
+    grid-template-columns: 1fr;
+  }
+
+  .commit-row {
+    grid-template-columns: 1fr;
+  }
+
+  .file-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .file-row .file-meta:nth-child(2) {
+    display: none;
+  }
+}

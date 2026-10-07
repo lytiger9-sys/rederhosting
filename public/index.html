@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hosting Panel</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <main class="container">
+    <header>
+      <div>
+        <p class="eyebrow">HOSTING PANEL</p>
+        <h1>Project Manager</h1>
+        <p class="muted">여러 프로젝트를 관리하기 위한 기본 패널</p>
+      </div>
+      <button id="refreshButton">새로고침</button>
+    </header>
+
+    <section class="stats-grid">
+      <article class="card">
+        <span>패널 CPU</span>
+        <strong id="cpu">-</strong>
+      </article>
+
+      <article class="card">
+        <span>Memory</span>
+        <strong id="memory">-</strong>
+      </article>
+
+      <article class="card">
+        <span>Projects</span>
+        <strong id="projectCount">-</strong>
+      </article>
+    </section>
+
+    <section class="card">
+      <div class="section-title">
+        <h2>Projects</h2>
+      </div>
+
+      <form id="projectForm" class="project-form">
+        <input id="projectName" placeholder="프로젝트 이름" required>
+        <input id="buildCommand" placeholder="Build Command">
+        <input id="startCommand" placeholder="Start Command">
+        <button type="submit">생성</button>
+      </form>
+
+      <div id="projects" class="projects"></div>
+    </section>
+
+    <section id="fileManager" class="card file-manager" hidden>
+      <div class="section-title">
+        <div>
+          <p class="eyebrow">PROJECT FILES</p>
+          <h2 id="fileManagerTitle">파일 관리</h2>
+        </div>
+        <button id="closeFileManagerButton" type="button">닫기</button>
+      </div>
+
+      <div id="githubImportPanel" class="github-import">
+        <label for="githubRepositoryUrl">공개 GitHub 저장소</label>
+        <div class="github-import-control">
+          <input id="githubRepositoryUrl" type="url" placeholder="https://github.com/owner/repository">
+          <button id="importGitHubButton" type="button">연결 및 최신본 가져오기</button>
+        </div>
+        <small>공개 저장소만 지원합니다. 파일 추가는 GitHub를 통해서만 가능하며, 배포 시 선택한 커밋 파일로 교체합니다. 저장소당 최대 100MB입니다.</small>
+      </div>
+
+      <p id="githubRepositoryConnected" class="github-connected" hidden></p>
+      <p class="environment-description">프로젝트 파일은 GitHub에서만 가져올 수 있습니다. 목록에서 파일을 확인·다운로드·삭제할 수 있습니다.</p>
+
+      <p id="fileMessage" class="file-message" role="status" aria-live="polite"></p>
+      <div id="fileTree" class="file-tree"></div>
+    </section>
+  </main>
+
+  <dialog id="deploymentModal" class="environment-modal">
+    <div class="section-title">
+      <div><p class="eyebrow">GITHUB DEPLOYMENT</p><h2 id="deploymentTitle">커밋 선택</h2></div>
+      <button id="closeDeploymentButton" type="button">닫기</button>
+    </div>
+    <p class="environment-description">배포할 커밋을 선택하세요. 해당 파일을 적용한 뒤 빌드하고, 성공하면 실행합니다.</p>
+    <p id="deploymentMessage" class="file-message" role="status" aria-live="polite"></p>
+    <div id="commitList" class="commit-list"></div>
+  </dialog>
+
+  <dialog id="logsModal" class="environment-modal logs-modal">
+    <div class="section-title">
+      <div><p class="eyebrow">PROJECT LOGS</p><h2 id="logsTitle">프로젝트 로그</h2></div>
+      <button id="closeLogsButton" type="button">닫기</button>
+    </div>
+    <div class="logs-toolbar"><span id="logsStatus" class="muted">최근 로그</span><button id="refreshLogsButton" type="button">새로고침</button></div>
+    <pre id="logsOutput" class="logs-output">로그를 불러오는 중...</pre>
+  </dialog>
+
+  <dialog id="deleteProjectModal" class="environment-modal">
+    <div class="section-title">
+      <div><p class="eyebrow">DELETE PROJECT</p><h2>프로젝트 삭제 확인</h2></div>
+      <button id="closeDeleteProjectButton" type="button">닫기</button>
+    </div>
+    <p id="deleteProjectDescription" class="environment-description"></p>
+    <p id="deleteProjectMessage" class="file-message" role="status" aria-live="polite"></p>
+    <div class="environment-footer">
+      <button id="cancelDeleteProjectButton" type="button">취소</button>
+      <button id="confirmDeleteProjectButton" type="button" class="danger-button">프로젝트 삭제</button>
+    </div>
+  </dialog>
+
+  <dialog id="environmentModal" class="environment-modal">
+    <form id="environmentForm" method="dialog">
+      <div class="section-title">
+        <div>
+          <p class="eyebrow">PROJECT ENVIRONMENT</p>
+          <h2 id="environmentTitle">환경변수</h2>
+        </div>
+        <button id="closeEnvironmentButton" type="button" aria-label="닫기">닫기</button>
+      </div>
+      <p class="environment-description">저장한 변수는 프로젝트 루트의 .env 파일에 저장되며, 프로젝트를 다시 실행할 때 적용됩니다.</p>
+      <div class="environment-columns"><span>이름</span><span>값</span><span></span></div>
+      <div id="environmentRows" class="environment-rows"></div>
+      <button id="addEnvironmentButton" type="button">변수 추가</button>
+      <p id="environmentMessage" class="file-message" role="status" aria-live="polite"></p>
+      <div class="environment-footer">
+        <button id="cancelEnvironmentButton" type="button">취소</button>
+        <button id="saveEnvironmentButton" type="submit">저장</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>
