@@ -1,7 +1,17 @@
 import os from "node:os";
+import { getPublicIp, refreshPublicIp } from "./publicIp.js";
 
 let previousCpu = process.cpuUsage();
 let previousSampleTime = process.hrtime.bigint();
+
+function readCpuTotals() {
+  return os.cpus().reduce((total, cpu) => ({
+    idle: total.idle + cpu.times.idle,
+    all: total.all + Object.values(cpu.times).reduce((sum, value) => sum + value, 0)
+  }), { idle: 0, all: 0 });
+}
+
+let previousSystemCpu = readCpuTotals();
 
 let latestStats = {
   timestamp: new Date().toISOString(),
@@ -10,6 +20,7 @@ let latestStats = {
     cpuPercent: 0,
     memoryBytes: process.memoryUsage().rss
   },
+  publicIp: "",
   memory: {
     totalBytes: os.totalmem(),
     freeBytes: os.freemem(),
@@ -22,10 +33,18 @@ function refresh() {
   const total = os.totalmem();
   const free = os.freemem();
   const used = total - free;
+  const currentSystemCpu = readCpuTotals();
+  const elapsed = currentSystemCpu.all - previousSystemCpu.all;
+  const idle = currentSystemCpu.idle - previousSystemCpu.idle;
+  const systemCpuPercent = elapsed > 0
+    ? Number((Math.max(0, (elapsed - idle) / elapsed) * 100).toFixed(2))
+    : 0;
+  previousSystemCpu = currentSystemCpu;
 
   latestStats = {
     timestamp: new Date().toISOString(),
-    cpu: latestStats.cpu,
+    publicIp: getPublicIp(),
+    cpu: { usagePercent: systemCpuPercent },
     memory: {
       totalBytes: total,
       freeBytes: free,
@@ -54,11 +73,13 @@ function refreshProcessUsage() {
 
 export function startResourceMonitor() {
   refresh();
+  refreshPublicIp();
 
   setInterval(() => {
     refresh();
     refreshProcessUsage();
   }, 2000);
+  setInterval(refreshPublicIp, 10 * 60 * 1000);
 }
 
 export function getSystemStats() {

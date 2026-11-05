@@ -10,26 +10,19 @@
   <div class="app-shell">
     <aside class="sidebar" aria-label="주 메뉴">
       <a class="brand" href="/" aria-label="Hosting Panel 홈">
-        <span class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M4 19V5m0 0h7m-7 0v7h7m0-7v7h7m-7 0v7h7"/></svg>
-        </span>
-        <span>HOSTING<span class="brand-muted"> PANEL</span></span>
+        <img class="brand-logo" src="/assets/veloxcore-labs-logo.png" alt="VeloxCore Labs 로고">
+        <span class="brand-title">HOSTING<span class="brand-muted"> PANEL</span></span>
       </a>
-      <div class="workspace-switcher">
-        <span class="workspace-avatar">M</span>
-        <span class="workspace-copy"><strong>My Workspace</strong><small>개인 워크스페이스</small></span>
-        <svg class="switcher-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4-4 4 4M8 14l4 4 4-4"/></svg>
-      </div>
-      <nav class="sidebar-nav">
-        <p class="nav-heading">WORKSPACE</p>
-        <a class="nav-item active" href="#projectsSection">
+      <nav id="sidebarNav" class="sidebar-nav">
+        <p class="nav-heading">SERVER</p>
+        <button class="nav-item active" type="button" data-page="stats">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5m0 14h16M7 15l4-4 3 2 5-7"/></svg>
+          <span>서버 스탯</span>
+        </button>
+        <button class="nav-item" type="button" data-page="projects">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg>
           <span>프로젝트</span>
-        </a>
-        <a class="nav-item" href="#statsSection">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5m0 14h16M7 15l4-4 3 2 5-7"/></svg>
-          <span>모니터링</span>
-        </a>
+        </button>
       </nav>
       <div class="sidebar-footer">
         <div class="panel-state"><span class="state-dot"></span><span>패널 온라인</span></div>
@@ -42,7 +35,7 @@
 
     <div class="main-shell">
       <header class="topbar">
-        <div class="breadcrumbs"><span>My Workspace</span><span class="breadcrumb-separator">/</span><strong>프로젝트</strong></div>
+        <div class="breadcrumbs"><span>HOSTING PANEL</span><span class="breadcrumb-separator">/</span><strong id="breadcrumbPage">서버 스탯</strong></div>
         <div class="header-actions">
           <button id="refreshButton" class="toolbar-button" type="button">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.6 9a7 7 0 0 1 11.6-2L20 12M4 12l2.8 5a7 7 0 0 0 11.6-2"/></svg>
@@ -52,34 +45,39 @@
       </header>
 
       <main class="container">
-        <section class="page-heading">
+        <section id="pageHeading" class="page-heading">
           <div>
-            <p class="eyebrow">WORKSPACE / SERVICES</p>
-            <h1>프로젝트</h1>
-            <p class="muted">호스팅 프로젝트와 리소스를 관리합니다.</p>
+            <p class="eyebrow">SERVER / OVERVIEW</p>
+            <h1>서버 스탯</h1>
+            <p class="muted">호스팅 서버의 리소스와 프로젝트 현황입니다.</p>
           </div>
         </section>
 
     <section id="statsSection" class="stats-grid">
       <article class="card">
-        <span>패널 CPU</span>
+        <span>CPU</span>
         <strong id="cpu">-</strong>
       </article>
 
       <article class="card">
-        <span>Memory</span>
+        <span>메모리</span>
         <strong id="memory">-</strong>
       </article>
 
       <article class="card">
-        <span>Projects</span>
+        <span>공인 IP</span>
+        <strong id="publicIp">확인 중</strong>
+      </article>
+
+      <article class="card">
+        <span>프로젝트 수</span>
         <strong id="projectCount">-</strong>
       </article>
     </section>
 
     <section id="projectsSection" class="card projects-panel">
       <div class="section-title">
-        <h2>Projects</h2>
+        <h2>프로젝트</h2>
       </div>
 
       <form id="projectForm" class="project-form">
@@ -91,6 +89,32 @@
       <p class="muted project-name-hint">이름은 영문자·숫자·하이픈만 사용하세요. 실행 앱에는 PORT, HOST, BASE_PATH 환경변수가 전달됩니다.</p>
 
       <div id="projects" class="projects"></div>
+    </section>
+
+    <section id="projectDetailPage" class="project-detail-page" hidden>
+      <div class="detail-page-heading">
+        <button id="backToProjectsButton" class="back-button" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6M9 12h11"/></svg>
+          <span>프로젝트</span>
+        </button>
+        <div class="detail-project-heading">
+          <p class="eyebrow">PROJECT</p>
+          <h1 id="projectDetailTitle"></h1>
+          <p id="projectDetailSubtitle" class="muted"></p>
+        </div>
+      </div>
+      <div class="detail-layout">
+        <nav id="projectDetailNav" class="detail-nav" aria-label="프로젝트 메뉴">
+          <p class="nav-heading">PROJECT</p>
+          <button class="detail-nav-item active" type="button" data-detail-tab="overview"><span class="detail-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M9 21v-8h6v8"/></svg></span>개요</button>
+          <button class="detail-nav-item" type="button" data-detail-tab="deploys"><span class="detail-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V3m0 0L8 7m4-4 4 4"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></span>배포</button>
+          <button class="detail-nav-item" type="button" data-detail-tab="logs"><span class="detail-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></span>로그</button>
+          <button class="detail-nav-item" type="button" data-detail-tab="files"><span class="detail-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 10h18"/></svg></span>소스 파일</button>
+          <button class="detail-nav-item" type="button" data-detail-tab="environment"><span class="detail-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4H6a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h2m8-16h2a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2 2 2 0 0 0-2 2v4a2 2 0 0 1-2 2h-2"/></svg></span>환경변수</button>
+          <button class="detail-nav-item" type="button" data-detail-tab="terminal"><span class="detail-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 6 6 6-6 6m8 0h8"/></svg></span>터미널</button>
+        </nav>
+        <div id="projectDetailContent" class="detail-content"></div>
+      </div>
     </section>
 
     <section id="fileManager" class="card file-manager" hidden>

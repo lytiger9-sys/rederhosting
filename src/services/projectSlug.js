@@ -1,5 +1,5 @@
 const projectNamePattern = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,48}[A-Za-z0-9])?$/;
-const reservedSlugs = new Set(["api", "css", "js", "vendor", "login", "login.html", "index", "index.html", "favicon", "favicon.ico"]);
+const reservedSlugs = new Set(["api", "assets", "css", "js", "vendor", "login", "login.html", "index", "index.html", "favicon", "favicon.ico"]);
 
 export function normalizeProjectSlug(name) {
   const value = String(name || "").trim();
