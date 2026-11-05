@@ -89,8 +89,8 @@ export function runProjectCommand(id, command, cwd, { env = {} } = {}) {
     env: { ...process.env, ...env }
   });
   processes.set(id, child);
-  appendProjectLog(id, `빌드 시작: ${command}`).catch(() => {});
-  captureOutput(id, child);
+  appendProjectLog(id, `빌드 시작: ${command}`, "BUILD").catch(() => {});
+  captureOutput(id, child, { stdoutLevel: "BUILD", stderrLevel: "BUILD_ERR" });
 
   return new Promise((resolve, reject) => {
     let settled = false;
@@ -101,22 +101,22 @@ export function runProjectCommand(id, command, cwd, { env = {} } = {}) {
       if (settled) return;
       settled = true;
       removeProcess();
-      appendProjectLog(id, `빌드 실행 오류: ${error.message}`, "ERROR").catch(() => {});
+      appendProjectLog(id, `빌드 실행 오류: ${error.message}`, "BUILD_ERR").catch(() => {});
       reject(error);
     });
     child.once("exit", (code, signal) => {
       if (settled) return;
       settled = true;
       removeProcess();
-      appendProjectLog(id, `빌드 종료 (code=${code}, signal=${signal || "none"})`).catch(() => {});
+      appendProjectLog(id, `빌드 종료 (code=${code}, signal=${signal || "none"})`, code === 0 ? "BUILD" : "BUILD_ERR").catch(() => {});
       resolve({ code: code ?? 1, signal });
     });
   });
 }
 
-function captureOutput(id, child) {
-  child.stdout?.on("data", (chunk) => appendProjectLog(id, chunk.toString(), "OUT").catch(() => {}));
-  child.stderr?.on("data", (chunk) => appendProjectLog(id, chunk.toString(), "ERR").catch(() => {}));
+function captureOutput(id, child, { stdoutLevel = "OUT", stderrLevel = "ERR" } = {}) {
+  child.stdout?.on("data", (chunk) => appendProjectLog(id, chunk.toString(), stdoutLevel).catch(() => {}));
+  child.stderr?.on("data", (chunk) => appendProjectLog(id, chunk.toString(), stderrLevel).catch(() => {}));
 }
 
 export function stopProcess(id) {

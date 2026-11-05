@@ -1242,6 +1242,24 @@ textarea:focus {
   white-space: nowrap;
 }
 
+.log-row-build {
+  background: #11171b;
+}
+
+.log-row-build span {
+  color: #b9d9e8;
+}
+
+.log-row-error {
+  background: #1b1011;
+}
+
+.log-row-error,
+.log-row-error time,
+.log-row-error span {
+  color: #ff8b8b;
+}
+
 .log-row span {
   overflow-wrap: anywhere;
 }
