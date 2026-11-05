@@ -672,6 +672,7 @@ body {
   padding: 0 10px;
   border: 1px solid transparent;
   border-radius: 7px;
+  background: transparent;
   color: #c7c7cc;
   font-size: 13px;
   text-decoration: none;
@@ -1164,6 +1165,69 @@ textarea:focus {
   color: #fff;
 }
 
+.detail-nav-subitem {
+  min-height: 32px;
+  margin-top: -3px;
+  padding-left: 25px;
+  color: #a3a3aa;
+  font-size: 11px;
+}
+
+.detail-nav-subitem .detail-nav-icon {
+  width: 12px;
+}
+
+.deployment-history-list {
+  display: grid;
+  gap: 8px;
+}
+
+.deployment-history-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 14px;
+  width: 100%;
+  min-height: 66px;
+  align-items: center;
+  padding: 12px 15px;
+  border: 1px solid #2b2b30;
+  border-radius: 8px;
+  background: #111113;
+  text-align: left;
+}
+
+.deployment-history-item:hover {
+  background: #19191c;
+}
+
+.deployment-history-item strong {
+  color: #e4e4e7;
+  font-size: 13px;
+}
+
+.deployment-history-item span {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  font-size: 12px;
+}
+
+.deployment-history-item small {
+  color: #929299;
+  font-size: 11px;
+}
+
+.deployment-success span {
+  color: #b9d9e8;
+}
+
+.deployment-failed span {
+  color: #ff8b8b;
+}
+
+.deployment-running span {
+  color: #c7c7cc;
+}
+
 .detail-nav-icon {
   display: inline-grid;
   width: 17px;
@@ -1426,7 +1490,7 @@ textarea:focus {
 .detail-action-card button[data-detail-action="deploy"]::before { content: "↥"; }
 .detail-action-card button[data-detail-action="logs"]::before { content: "≡"; }
 .detail-action-card button[data-detail-action="files"]::before { content: "▱"; }
-.detail-action-card button[data-detail-action="environment"]::before { content: "{}"; font-size: 11px; }
+.detail-action-card button[data-detail-action="environment"]::before { content: none; }
 .detail-action-card button[data-detail-action="terminal"]::before { content: ">_"; font-size: 11px; }
 
 .detail-action-card button {

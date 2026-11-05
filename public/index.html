@@ -108,6 +108,7 @@
           <p class="nav-heading">PROJECT</p>
           <button class="detail-nav-item active" type="button" data-detail-tab="overview"><span class="detail-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M9 21v-8h6v8"/></svg></span>개요</button>
           <button class="detail-nav-item" type="button" data-detail-tab="deploys"><span class="detail-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V3m0 0L8 7m4-4 4 4"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></span>배포</button>
+          <button class="detail-nav-item detail-nav-subitem" type="button" data-detail-tab="deploy-history"><span class="detail-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h16"/><circle cx="7" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="17" cy="19" r="1"/></svg></span>배포 기록</button>
           <button class="detail-nav-item" type="button" data-detail-tab="logs"><span class="detail-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></span>로그</button>
           <button class="detail-nav-item" type="button" data-detail-tab="files"><span class="detail-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 10h18"/></svg></span>소스 파일</button>
           <button class="detail-nav-item" type="button" data-detail-tab="environment"><span class="detail-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4H6a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h2m8-16h2a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2 2 2 0 0 0-2 2v4a2 2 0 0 1-2 2h-2"/></svg></span>환경변수</button>
@@ -162,6 +163,15 @@
     </div>
     <div class="logs-toolbar"><span id="logsStatus" class="muted">최근 로그</span><button id="refreshLogsButton" type="button">새로고침</button></div>
     <pre id="logsOutput" class="logs-output">로그를 불러오는 중...</pre>
+  </dialog>
+
+  <dialog id="deploymentLogModal" class="environment-modal logs-modal">
+    <div class="section-title">
+      <div><p class="eyebrow">DEPLOYMENT LOG</p><h2 id="deploymentLogModalTitle">배포 로그</h2></div>
+      <button id="closeDeploymentLogModalButton" type="button">닫기</button>
+    </div>
+    <p id="deploymentLogModalMeta" class="environment-description"></p>
+    <div id="deploymentLogModalOutput" class="logs-output logs-list">로그를 불러오는 중...</div>
   </dialog>
 
   <dialog id="terminalModal" class="environment-modal terminal-modal">

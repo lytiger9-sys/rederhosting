@@ -67,6 +67,41 @@ export async function readProjectLogsInRange(projectId, from, to = new Date()) {
   }
 }
 
+export async function readProjectDeploymentHistory(projectId) {
+  const contents = await readProjectLogsInRange(projectId, null, new Date());
+  const deployments = [];
+  let current = null;
+  for (const line of contents.split(/\r?\n/).filter(Boolean)) {
+    const parsed = /^\[([^\]]+)\]\s+\[([^\]]+)\]\s+(.*)$/.exec(line);
+    if (!parsed) continue;
+    const [, timestamp, level, message] = parsed;
+    const started = /^커밋 ([0-9a-f]{7,40}) 배포 시작$/i.exec(message);
+    if (started) {
+      current = {
+        commit: started[1],
+        startedAt: timestamp,
+        finishedAt: null,
+        status: "running",
+        logs: [line]
+      };
+      deployments.push(current);
+      continue;
+    }
+    if (!current) continue;
+    current.logs.push(line);
+    const completed = /^커밋 ([0-9a-f]{7,40}) 배포 완료$/i.exec(message);
+    if (completed) {
+      current.finishedAt = timestamp;
+      current.status = "success";
+    } else if (/^배포 실패:/.test(message)) {
+      current.finishedAt = timestamp;
+      current.status = "failed";
+    }
+    if (current.status !== "running") current = null;
+  }
+  return deployments.reverse();
+}
+
 export async function clearProjectLogs(projectId) {
   await serialize(projectId, () => fs.rm(logPath(projectId), { force: true }));
 }

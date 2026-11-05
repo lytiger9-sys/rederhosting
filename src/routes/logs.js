@@ -1,12 +1,17 @@
 import { Router } from "express";
 import { getProject } from "../services/projectManager.js";
-import { readProjectLogs, readProjectLogsInRange } from "../services/projectLogs.js";
+import { readProjectDeploymentHistory, readProjectLogs, readProjectLogsInRange } from "../services/projectLogs.js";
 
 const router = Router({ mergeParams: true });
 
 router.get("/", async (req, res) => {
   try {
     const project = await getProject(req.params.id);
+    if (req.query.deployments === "1") {
+      const deployments = await readProjectDeploymentHistory(req.params.id);
+      res.set("Cache-Control", "no-store");
+      return res.json({ projectId: project.id, deployments });
+    }
     const requestedLines = Number(req.query.lines || 500);
     const maxLines = Number.isInteger(requestedLines) ? Math.max(1, Math.min(2000, requestedLines)) : 500;
     const from = req.query.from ? new Date(String(req.query.from)) : null;

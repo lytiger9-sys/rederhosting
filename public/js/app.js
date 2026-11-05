@@ -6,11 +6,13 @@ let deploymentProjectId = null;
 let deletionProjectId = null;
 let logsProjectId = null;
 let logsRefreshTimer = null;
+let logsInitialLoad = false;
 let projectDetailId = null;
 let projectDetailTab = "overview";
 let dashboardPage = "stats";
 let detailLogsRefreshTimer = null;
 let projectDetailLogsInitialLoad = false;
+let deploymentHistoryRecords = [];
 let projectsById = new Map();
 const operationFeedback = new Map();
 
@@ -314,10 +316,14 @@ function renderProjectDetail() {
       <div class="detail-section-heading"><p class="eyebrow">DEPLOYS</p><h2>배포 기록</h2></div>
       <p id="projectDetailDeployMessage" class="file-message" role="status" aria-live="polite">커밋 기록을 불러오는 중...</p>
       <div id="projectDetailCommitList" class="commit-list"></div>`,
+    "deploy-history": `
+      <div class="detail-section-heading"><p class="eyebrow">DEPLOY HISTORY</p><h2>배포 기록</h2></div>
+      <p id="projectDeploymentHistoryMessage" class="file-message" role="status" aria-live="polite">배포 기록을 불러오는 중...</p>
+      <div id="projectDeploymentHistoryList" class="deployment-history-list"></div>`,
     logs: `
       <div class="detail-section-heading"><p class="eyebrow">LOGS</p><h2>프로젝트 로그</h2></div>
       <div class="logs-toolbar">
-        <label class="log-range-control"><span class="visually-hidden">로그 조회 기간</span><select id="projectDetailLogRange"><option value="1h">최근 1시간</option><option value="6h">최근 6시간</option><option value="24h">최근 24시간</option><option value="2d" selected>최근 2일</option><option value="7d">최근 7일</option><option value="all">전체 로그</option></select></label>
+        <label class="log-range-control"><span class="visually-hidden">로그 조회 기간</span><select id="projectDetailLogRange"><option value="1h" selected>최근 1시간</option><option value="6h">최근 6시간</option><option value="24h">최근 24시간</option><option value="2d">최근 2일</option><option value="7d">최근 7일</option><option value="all">전체 로그</option></select></label>
         <span id="projectDetailLogsStatus" class="muted">로그를 불러오는 중...</span><button type="button" data-detail-action="refresh-logs">새로고침</button>
       </div>
       <div id="projectDetailLogsOutput" class="logs-output logs-list" aria-live="polite">로그를 불러오는 중...</div>`,
@@ -336,6 +342,7 @@ function renderProjectDetail() {
   };
   $("#projectDetailContent").innerHTML = contentByTab[projectDetailTab] || contentByTab.overview;
   if (projectDetailTab === "deploys") loadProjectDetailCommits();
+  if (projectDetailTab === "deploy-history") loadProjectDeploymentHistory();
   if (projectDetailTab === "logs") {
     stopProjectDetailLogRefresh();
     projectDetailLogsInitialLoad = true;
@@ -366,6 +373,23 @@ $("#projectDetailContent").addEventListener("change", (event) => {
     refreshProjectDetailLogs();
   }
 });
+
+$("#projectDetailContent").addEventListener("click", (event) => {
+  const row = event.target.closest("[data-deployment-index]");
+  if (!row) return;
+  const deployment = deploymentHistoryRecords[Number(row.dataset.deploymentIndex)];
+  if (!deployment) return;
+  $("#deploymentLogModalTitle").textContent = `배포 ${deployment.commit.slice(0, 7)} 로그`;
+  const deploymentTime = deployment.finishedAt || deployment.startedAt;
+  const statusLabel = deployment.status === "success" ? "완료" : deployment.status === "failed" ? "실패" : "진행 중 또는 기록이 잘림";
+  $("#deploymentLogModalMeta").textContent = `${statusLabel} · ${new Date(deploymentTime).toLocaleString()}`;
+  $("#deploymentLogModal").showModal();
+  const output = $("#deploymentLogModalOutput");
+  renderProjectLogLines(output, deployment.logs.join("\n"));
+  requestAnimationFrame(() => { output.scrollTop = output.scrollHeight; });
+});
+
+$("#closeDeploymentLogModalButton").addEventListener("click", () => $("#deploymentLogModal").close());
 
 $("#projectDetailContent").addEventListener("click", async (event) => {
   const button = event.target.closest("[data-detail-action]");
@@ -499,6 +523,43 @@ async function loadProjectDetailCommits() {
   }
 }
 
+async function loadProjectDeploymentHistory() {
+  const message = $("#projectDeploymentHistoryMessage");
+  const list = $("#projectDeploymentHistoryList");
+  if (!projectDetailId || !message || !list) return;
+  const projectId = projectDetailId;
+  message.textContent = "배포 기록을 불러오는 중...";
+  message.classList.remove("error");
+  list.replaceChildren();
+  try {
+    const result = await readResponse(await fetch(projectUrl(projectId, "/logs?deployments=1"), { cache: "no-store" }));
+    if (projectDetailId !== projectId || projectDetailTab !== "deploy-history") return;
+    deploymentHistoryRecords = result.deployments || [];
+    if (!deploymentHistoryRecords.length) {
+      message.textContent = "저장된 배포 기록이 없습니다.";
+      return;
+    }
+    message.textContent = `최근 배포 ${deploymentHistoryRecords.length}건 · 행을 선택하면 해당 배포 로그를 확인할 수 있습니다.`;
+    deploymentHistoryRecords.forEach((deployment, index) => {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = `deployment-history-item deployment-${deployment.status}`;
+      row.dataset.deploymentIndex = String(index);
+      const heading = document.createElement("strong");
+      heading.textContent = `커밋 ${deployment.commit.slice(0, 7)}`;
+      const state = document.createElement("span");
+      state.textContent = deployment.status === "success" ? "완료" : deployment.status === "failed" ? "실패" : "기록 미완료";
+      const date = document.createElement("small");
+      date.textContent = new Date(deployment.finishedAt || deployment.startedAt).toLocaleString();
+      row.append(heading, state, date);
+      list.append(row);
+    });
+  } catch (error) {
+    message.textContent = error.message;
+    message.classList.add("error");
+  }
+}
+
 async function openDeploymentModal(projectId) {
   const project = projectsById.get(projectId);
   if (!project) return;
@@ -578,6 +639,7 @@ async function openLogsModal(projectId) {
   const project = projectsById.get(projectId);
   if (!project) return;
   logsProjectId = projectId;
+  logsInitialLoad = true;
   $("#logsTitle").textContent = `${project.name} 로그`;
   $("#logsOutput").textContent = "로그를 불러오는 중...";
   $("#logsModal").showModal();
@@ -595,7 +657,10 @@ async function refreshProjectLogs() {
     const logOutput = $("#logsOutput");
     const previousScrollTop = logOutput.scrollTop;
     logOutput.textContent = result.logs || "아직 기록된 로그가 없습니다.";
-    logOutput.scrollTop = previousScrollTop;
+    if (logsInitialLoad) {
+      logOutput.scrollTop = logOutput.scrollHeight;
+      logsInitialLoad = false;
+    } else logOutput.scrollTop = previousScrollTop;
     const status = result.status || "상태 정보 없음";
     const lineCount = Number.isFinite(result.lineCount)
       ? result.lineCount
@@ -611,7 +676,7 @@ async function refreshProjectDetailLogs() {
   const output = $("#projectDetailLogsOutput");
   if (!output) return;
   try {
-    const range = document.querySelector("#projectDetailLogRange")?.value || "2d";
+    const range = document.querySelector("#projectDetailLogRange")?.value || "1h";
     const rangeSince = { "1h": 60 * 60_000, "6h": 6 * 60 * 60_000, "24h": 24 * 60 * 60_000, "2d": 2 * 24 * 60 * 60_000, "7d": 7 * 24 * 60 * 60_000 };
     const query = range === "all" ? "?all=1" : `?from=${encodeURIComponent(new Date(Date.now() - rangeSince[range]).toISOString())}`;
     const result = await readResponse(await fetch(projectUrl(projectDetailId, `/logs${query}`), {
