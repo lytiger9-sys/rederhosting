@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>로그인 · Hosting Panel</title>
+  <link rel="stylesheet" href="/css/login.css">
+  <script src="/js/login.js" defer></script>
+</head>
+<body>
+  <main class="login-card">
+    <p class="eyebrow">HOSTING PANEL</p>
+    <h1>로그인</h1>
+    <p class="description">관리자 아이디와 비밀번호를 입력하세요.</p>
+    <form id="loginForm">
+      <label for="username">아이디</label>
+      <input id="username" name="username" autocomplete="username" required autofocus>
+      <label for="password">비밀번호</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+      <p id="loginError" class="error" role="alert" aria-live="polite"></p>
+      <button id="loginButton" type="submit">로그인</button>
+    </form>
+  </main>
+</body>
+</html>

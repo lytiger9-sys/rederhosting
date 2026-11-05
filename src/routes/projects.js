@@ -3,6 +3,8 @@ import filesRouter from "./files.js";
 import githubRouter from "./github.js";
 import environmentRouter from "./environment.js";
 import logsRouter from "./logs.js";
+import terminalRouter from "./terminal.js";
+import { closeProjectTerminalForProject } from "../services/projectTerminal.js";
 import {
   createProject,
   listProjects,
@@ -18,6 +20,7 @@ router.use("/:id/files", filesRouter);
 router.use("/:id/github", githubRouter);
 router.use("/:id/environment", environmentRouter);
 router.use("/:id/logs", logsRouter);
+router.use("/:id/terminal", terminalRouter);
 
 router.get("/", async (_req, res) => {
   res.json(await listProjects());
@@ -41,6 +44,7 @@ router.get("/:id", async (req, res) => {
 
 router.delete("/:id", async (req, res) => {
   try {
+    closeProjectTerminalForProject(req.params.id);
     res.json(await deleteProject(req.params.id));
   } catch (error) {
     const message = ["EBUSY", "EPERM"].includes(error.code)
@@ -54,7 +58,7 @@ router.post("/:id/start", async (req, res) => {
   try {
     res.json(await startProject(req.params.id));
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    res.status(error.status || 400).json({ error: error.message, status: error.projectStatus || "start_failed" });
   }
 });
 
@@ -62,7 +66,7 @@ router.post("/:id/stop", async (req, res) => {
   try {
     res.json(await stopProject(req.params.id));
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    res.status(error.status || 400).json({ error: error.message, status: error.projectStatus || "stop_failed" });
   }
 });
 

@@ -7,6 +7,7 @@ let deletionProjectId = null;
 let logsProjectId = null;
 let logsRefreshTimer = null;
 let projectsById = new Map();
+const operationFeedback = new Map();
 
 function formatBytes(bytes) {
   if (!bytes) return "0 B";
@@ -23,6 +24,23 @@ function formatBytes(bytes) {
   return `${value.toFixed(index ? 1 : 0)} ${units[index]}`;
 }
 
+function projectStatusLabel(status) {
+  const labels = {
+    stopped: "중지됨",
+    starting: "시작 중",
+    running: "실행 중",
+    stopping: "중지 중",
+    completed: "명령 종료",
+    start_failed: "실행 오류",
+    crashed: "비정상 종료",
+    stop_failed: "중지 오류",
+    deploying: "배포 중",
+    build_failed: "빌드 실패",
+    deploy_failed: "배포 실패"
+  };
+  return labels[status] || status || "상태 확인 중";
+}
+
 async function readResponse(response) {
   let data = {};
   const fallbackResponse = response.clone();
@@ -37,10 +55,19 @@ async function readResponse(response) {
   }
 
   if (!response.ok) {
+    if (response.status === 401) window.location.replace("/login.html");
     throw new Error(data.error || "요청을 처리하지 못했습니다.");
   }
   return data;
 }
+
+$("#logoutButton").addEventListener("click", async () => {
+  try {
+    await fetch("/api/auth/logout", { method: "POST" });
+  } finally {
+    window.location.replace("/login.html");
+  }
+});
 
 async function loadSystem() {
   try {
@@ -67,35 +94,7 @@ async function loadProjects() {
   $("#projectCount").textContent = projects.length;
 
   $("#projects").innerHTML = projects.map((project) => `
-    <article class="project" data-project-id="${escapeHtml(project.id)}">
-      <button type="button" class="project-info" data-action="details" data-project-id="${escapeHtml(project.id)}" aria-label="${escapeHtml(project.name)} 상세 정보 보기" aria-expanded="${expandedIds.has(project.id)}">
-        <span class="project-chevron" aria-hidden="true">▸</span>
-        <span class="project-info-text">
-        <strong>${escapeHtml(project.name)}</strong>
-        <small>
-          ${escapeHtml(project.status)}
-          ${project.pid ? ` · 프로세스 번호 ${project.pid}` : ""}
-        </small>
-        </span>
-      </button>
-
-      <div class="project-actions">
-        <button type="button" data-action="files" data-project-id="${escapeHtml(project.id)}">소스 파일</button>
-        <button type="button" data-action="deploy" data-project-id="${escapeHtml(project.id)}">배포하기</button>
-        <button type="button" data-action="logs" data-project-id="${escapeHtml(project.id)}">로그 보기</button>
-        <button type="button" data-action="start" data-project-id="${escapeHtml(project.id)}">실행</button>
-        <button type="button" data-action="stop" data-project-id="${escapeHtml(project.id)}">중지</button>
-        <button type="button" class="danger-button" data-action="delete" data-project-id="${escapeHtml(project.id)}">삭제</button>
-      </div>
-
-      <div class="project-expanded" hidden>
-        <div><span>GitHub</span><strong>${escapeHtml(project.repositoryUrl || "저장소 연결 안 됨")}</strong></div>
-        <div><span>배포 커밋</span><strong>${escapeHtml(project.deployedCommit ? project.deployedCommit.slice(0, 7) : "배포 전")}</strong></div>
-        <div><span>빌드 커맨드</span><strong>${escapeHtml(project.buildCommand || "설정되지 않음")}</strong></div>
-        <div><span>실행 커맨드</span><strong>${escapeHtml(project.startCommand || "설정되지 않음")}</strong></div>
-        <button type="button" data-action="environment" data-project-id="${escapeHtml(project.id)}">.env 보기</button>
-      </div>
-    </article>
+    ${renderProjectCard(project, expandedIds.has(project.id))}
   `).join("");
 
   for (const projectId of expandedIds) {
@@ -106,15 +105,87 @@ async function loadProjects() {
   }
 }
 
+function renderProjectCard(project, expanded = false) {
+  const operation = operationFeedback.get(project.id);
+  const message = operation?.pending ? operation.message : (operation?.message || project.operationMessage || "");
+  const statusIsError = ["start_failed", "crashed", "stop_failed"].includes(project.status);
+  const feedbackTone = operation?.tone || (statusIsError ? "error" : "");
+  const busy = Boolean(operation?.pending);
+  const canStop = ["running", "starting", "stopping", "stop_failed"].includes(project.status);
+  const startLabel = project.status === "running" ? "실행 중" :
+    project.status === "starting" ? "시작 중..." :
+      ["start_failed", "crashed"].includes(project.status) ? "다시 실행" : "실행";
+
+  return `
+    <article class="project" data-project-id="${escapeHtml(project.id)}">
+      <button type="button" class="project-info" data-action="details" data-project-id="${escapeHtml(project.id)}" aria-label="${escapeHtml(project.name)} 상세 정보 보기" aria-expanded="${expanded}">
+        <span class="project-chevron" aria-hidden="true">▸</span>
+        <span class="project-info-text">
+        <strong>${escapeHtml(project.name)}</strong>
+        <small>
+          ${escapeHtml(projectStatusLabel(project.status))}
+          ${project.pid ? ` · 프로세스 번호 ${project.pid}` : ""}
+        </small>
+        </span>
+      </button>
+
+      <div class="project-actions">
+        <button type="button" data-action="files" data-project-id="${escapeHtml(project.id)}" ${busy ? "disabled" : ""}>소스 파일</button>
+        <button type="button" data-action="deploy" data-project-id="${escapeHtml(project.id)}" ${busy ? "disabled" : ""}>배포하기</button>
+        <button type="button" data-action="logs" data-project-id="${escapeHtml(project.id)}" ${busy ? "disabled" : ""}>로그 보기</button>
+        <button type="button" data-action="terminal" data-project-id="${escapeHtml(project.id)}" ${busy ? "disabled" : ""}>터미널</button>
+        <button type="button" data-action="start" data-project-id="${escapeHtml(project.id)}" ${busy || ["running", "starting"].includes(project.status) ? "disabled" : ""}>${startLabel}</button>
+        <button type="button" data-action="stop" data-project-id="${escapeHtml(project.id)}" ${busy || !canStop ? "disabled" : ""}>${project.status === "stopping" ? "중지 중..." : "중지"}</button>
+        <button type="button" class="danger-button" data-action="delete" data-project-id="${escapeHtml(project.id)}" ${busy ? "disabled" : ""}>삭제</button>
+      </div>
+
+      <p class="project-feedback ${feedbackTone}" role="status" aria-live="polite" ${message ? "" : "hidden"}>${escapeHtml(message)}</p>
+
+      <div class="project-expanded" hidden>
+        <div><span>프로젝트 접속 주소</span>${project.slug
+          ? `<a href="${escapeHtml(`${window.location.origin}/${project.slug}/`)}" target="_blank" rel="noopener noreferrer">${escapeHtml(`${window.location.host}/${project.slug}/`)}</a>`
+          : "<strong>영문 이름으로 프로젝트를 다시 만들어야 합니다.</strong>"}</div>
+        <div><span>실행 포트</span><strong>${project.port ? escapeHtml(project.port) : "실행 시 자동 할당"}</strong></div>
+        <div><span>GitHub</span><strong>${escapeHtml(project.repositoryUrl || "저장소 연결 안 됨")}</strong></div>
+        <div><span>배포 커밋</span><strong>${escapeHtml(project.deployedCommit ? project.deployedCommit.slice(0, 7) : "배포 전")}</strong></div>
+        <div><span>빌드 커맨드</span><strong>${escapeHtml(project.buildCommand || "설정되지 않음")}</strong></div>
+        <div><span>실행 커맨드</span><strong>${escapeHtml(project.startCommand || "설정되지 않음")}</strong></div>
+        <button type="button" data-action="environment" data-project-id="${escapeHtml(project.id)}">.env 보기</button>
+      </div>
+    </article>
+  `;
+}
+
+function setOperationFeedback(projectId, message, tone = "", pending = false) {
+  operationFeedback.set(projectId, { message, tone, pending });
+  const article = document.querySelector(`.project[data-project-id="${CSS.escape(projectId)}"]`);
+  const feedback = article?.querySelector(".project-feedback");
+  if (feedback) {
+    feedback.textContent = message;
+    feedback.hidden = !message;
+    feedback.classList.toggle("error", tone === "error");
+    feedback.classList.toggle("pending", tone === "pending");
+  }
+  article?.querySelectorAll(".project-actions button").forEach((button) => {
+    if (pending) button.disabled = true;
+  });
+}
+
 async function controlProject(id, action) {
+  const actionLabel = action === "start" ? "실행" : "중지";
+  setOperationFeedback(id, `${actionLabel} 요청을 처리하고 있습니다...`, "pending", true);
   try {
     const response = await fetch(`/api/projects/${encodeURIComponent(id)}/${action}`, {
       method: "POST"
     });
     await readResponse(response);
+    operationFeedback.delete(id);
     await refresh();
+    await openLogsModal(id);
   } catch (error) {
-    alert(error.message);
+    setOperationFeedback(id, error.message, "error");
+    await refresh();
+    await openLogsModal(id);
   }
 }
 
@@ -133,6 +204,8 @@ $("#projects").addEventListener("click", async (event) => {
     await openDeploymentModal(projectId);
   } else if (action === "logs") {
     await openLogsModal(projectId);
+  } else if (action === "terminal") {
+    await window.openProjectTerminal(projectId, projectsById.get(projectId)?.name || "프로젝트");
   } else if (action === "delete") {
     openDeleteProjectModal(projectId);
   } else {

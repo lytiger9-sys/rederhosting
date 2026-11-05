@@ -14,7 +14,10 @@
         <h1>Project Manager</h1>
         <p class="muted">여러 프로젝트를 관리하기 위한 기본 패널</p>
       </div>
-      <button id="refreshButton">새로고침</button>
+      <div class="header-actions">
+        <button id="refreshButton">새로고침</button>
+        <button id="logoutButton" type="button">로그아웃</button>
+      </div>
     </header>
 
     <section class="stats-grid">
@@ -40,11 +43,12 @@
       </div>
 
       <form id="projectForm" class="project-form">
-        <input id="projectName" placeholder="프로젝트 이름" required>
+        <input id="projectName" placeholder="프로젝트 이름 (예: my-app)" pattern="[A-Za-z0-9](?:[A-Za-z0-9-]{0,48}[A-Za-z0-9])?" maxlength="50" title="영문자·숫자로 시작하고 영문자·숫자·하이픈만 사용할 수 있습니다." required>
         <input id="buildCommand" placeholder="Build Command">
         <input id="startCommand" placeholder="Start Command">
         <button type="submit">생성</button>
       </form>
+      <p class="muted project-name-hint">이름은 영문자·숫자·하이픈만 사용하세요. 실행 앱에는 PORT, HOST, BASE_PATH 환경변수가 전달됩니다.</p>
 
       <div id="projects" class="projects"></div>
     </section>
@@ -94,6 +98,15 @@
     <pre id="logsOutput" class="logs-output">로그를 불러오는 중...</pre>
   </dialog>
 
+  <dialog id="terminalModal" class="environment-modal terminal-modal">
+    <div class="section-title">
+      <div><p class="eyebrow">PROJECT TERMINAL</p><h2 id="terminalTitle">프로젝트 터미널</h2></div>
+      <button id="closeTerminalButton" type="button">터미널 닫기</button>
+    </div>
+    <p id="terminalMessage" class="environment-description">프로젝트 폴더에서 실행 중입니다. 명령은 호스팅 패널 서버와 같은 권한으로 파일을 변경할 수 있습니다.</p>
+    <div id="terminalOutput" class="terminal-output" aria-label="대화형 프로젝트 터미널"></div>
+  </dialog>
+
   <dialog id="deleteProjectModal" class="environment-modal">
     <div class="section-title">
       <div><p class="eyebrow">DELETE PROJECT</p><h2>프로젝트 삭제 확인</h2></div>
@@ -128,6 +141,10 @@
     </form>
   </dialog>
 
+  <link rel="stylesheet" href="/vendor/xterm/css/xterm.css">
+  <script src="/vendor/xterm/lib/xterm.js"></script>
+  <script src="/vendor/xterm-fit/lib/addon-fit.js"></script>
+  <script src="/js/projectTerminal.js"></script>
   <script src="/js/app.js"></script>
 </body>
 </html>

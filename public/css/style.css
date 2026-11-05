@@ -31,6 +31,12 @@ header,
   gap: 20px;
 }
 
+.header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
 .eyebrow {
   margin-bottom: 8px;
   color: #888;
@@ -68,6 +74,11 @@ button:hover {
   background: #1c1c20;
 }
 
+button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -98,6 +109,11 @@ button:hover {
   grid-template-columns: 1fr 1fr 1fr auto;
   gap: 10px;
   margin: 20px 0;
+}
+
+.project-name-hint {
+  margin: -8px 0 20px;
+  font-size: 12px;
 }
 
 .projects {
@@ -155,6 +171,31 @@ button:hover {
   justify-content: flex-end;
 }
 
+.project-feedback {
+  grid-column: 1 / -1;
+  margin: -8px 0 0;
+  padding: 10px 12px;
+  border: 1px solid #2f3a32;
+  border-radius: 9px;
+  background: #101713;
+  color: #b7e4c7;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.project-feedback.error {
+  border-color: #713838;
+  background: #1c1112;
+  color: #fecaca;
+}
+
+.project-feedback.pending {
+  border-color: #45405f;
+  background: #14121d;
+  color: #d1d5ff;
+}
+
 .project-expanded {
   grid-column: 1 / -1;
   display: grid;
@@ -183,6 +224,11 @@ button:hover {
 
 .project-expanded > button {
   justify-self: start;
+}
+
+.project-expanded a {
+  color: #a5b4fc;
+  overflow-wrap: anywhere;
 }
 
 .file-manager {
@@ -384,6 +430,21 @@ button:hover {
   font: 12px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.terminal-modal {
+  width: min(1100px, calc(100% - 28px));
+}
+
+.terminal-output {
+  width: 100%;
+  height: min(65vh, 650px);
+  min-height: 320px;
+  padding: 10px;
+  overflow: hidden;
+  border: 1px solid #303036;
+  border-radius: 10px;
+  background: #080809;
 }
 
 @media (max-width: 600px) {

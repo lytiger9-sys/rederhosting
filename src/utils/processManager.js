@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { appendProjectLog } from "../services/projectLogs.js";
 
 const processes = new Map();
@@ -15,6 +15,7 @@ export function startProcess(id, command, cwd, { env = {}, onExit, onError } = {
   const child = spawn(command, {
     cwd,
     shell: true,
+    detached: process.platform !== "win32",
     stdio: ["ignore", "pipe", "pipe"],
     env: { ...process.env, ...env }
   });
@@ -36,10 +37,44 @@ export function startProcess(id, command, cwd, { env = {}, onExit, onError } = {
   child.once("error", (error) => {
     removeProcess();
     appendProjectLog(id, `프로세스 오류: ${error.message}`, "ERROR").catch(() => {});
-    onError?.(error);
+    onError?.({ error });
   });
 
   return child;
+}
+
+export function waitForProcessStartup(child, graceMs = 1500) {
+  return new Promise((resolve) => {
+    let settled = false;
+    let timer;
+    const cleanup = () => {
+      clearTimeout(timer);
+      child.off("exit", onExit);
+      child.off("error", onError);
+    };
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(result);
+    };
+    const onExit = (code, signal) => finish({ running: false, code: code ?? 1, signal });
+    const onError = (error) => finish({ running: false, code: 1, error });
+
+    if (child.exitCode !== null || child.signalCode !== null) {
+      return finish({ running: false, code: child.exitCode ?? 1, signal: child.signalCode });
+    }
+
+    child.once("exit", onExit);
+    child.once("error", onError);
+    timer = setTimeout(() => {
+      finish({
+        running: child.exitCode === null && child.signalCode === null,
+        code: child.exitCode,
+        signal: child.signalCode
+      });
+    }, graceMs);
+  });
 }
 
 export function runProjectCommand(id, command, cwd, { env = {} } = {}) {
@@ -49,6 +84,7 @@ export function runProjectCommand(id, command, cwd, { env = {} } = {}) {
   const child = spawn(command, {
     cwd,
     shell: true,
+    detached: process.platform !== "win32",
     stdio: ["ignore", "pipe", "pipe"],
     env: { ...process.env, ...env }
   });
@@ -87,9 +123,21 @@ export function stopProcess(id) {
   const child = getProcess(id);
   if (!child) return false;
 
-  const signalSent = child.kill("SIGTERM");
-  if (!signalSent) processes.delete(id);
-  return signalSent;
+  if (process.platform === "win32" && child.pid) {
+    execFile("taskkill", ["/PID", String(child.pid), "/T", "/F"], { windowsHide: true }, (error) => {
+      if (error && child.exitCode === null && child.signalCode === null) child.kill("SIGTERM");
+    });
+    return true;
+  }
+
+  try {
+    process.kill(process.platform === "win32" ? child.pid : -child.pid, "SIGTERM");
+    return true;
+  } catch {
+    const signalSent = child.kill("SIGTERM");
+    if (!signalSent) processes.delete(id);
+    return signalSent;
+  }
 }
 
 export async function stopProcessAndWait(id, timeoutMs = 10000) {
@@ -112,13 +160,17 @@ export async function stopProcessAndWait(id, timeoutMs = 10000) {
     const onExit = () => finish(true);
     const onError = () => finish(true);
     const timer = setTimeout(() => {
-      child.kill("SIGKILL");
+      if (process.platform === "win32" && child.pid) {
+        execFile("taskkill", ["/PID", String(child.pid), "/T", "/F"], { windowsHide: true }, () => {});
+      } else {
+        try { process.kill(-child.pid, "SIGKILL"); } catch { child.kill("SIGKILL"); }
+      }
       forceKillTimer = setTimeout(() => {
         finish(child.exitCode !== null || child.signalCode !== null);
       }, 2000);
     }, timeoutMs);
     child.once("exit", onExit);
     child.once("error", onError);
-    if (!child.kill("SIGTERM")) finish(child.exitCode !== null || child.signalCode !== null);
+    if (!stopProcess(id)) finish(child.exitCode !== null || child.signalCode !== null);
   });
 }

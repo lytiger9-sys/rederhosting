@@ -10,6 +10,7 @@ import {
 import { deployPublicGitHubCommit } from "./githubImporter.js";
 import { readProjectEnvironment } from "./projectEnvironment.js";
 import { appendProjectLog } from "./projectLogs.js";
+import { normalizeProjectSlug } from "./projectSlug.js";
 
 export async function deployProjectCommit(projectId, commitSha) {
   const project = await getProject(projectId);
@@ -20,6 +21,12 @@ export async function deployProjectCommit(projectId, commitSha) {
   }
   if (!project.startCommand) {
     const error = new Error("배포 전에 실행 커맨드를 설정해야 합니다.");
+    error.status = 409;
+    throw error;
+  }
+  const slug = project.slug || normalizeProjectSlug(project.name);
+  if (!slug) {
+    const error = new Error("프로젝트 이름을 영문·숫자·하이픈 형식으로 다시 만든 뒤 배포하세요.");
     error.status = 409;
     throw error;
   }
@@ -48,7 +55,9 @@ export async function deployProjectCommit(projectId, commitSha) {
     const env = Object.fromEntries(envEntries.map(({ key, value }) => [key, value]));
 
     if (current.buildCommand.trim()) {
-      const build = await runProjectCommand(projectId, current.buildCommand, getProjectDirectory(projectId), { env });
+      const build = await runProjectCommand(projectId, current.buildCommand, getProjectDirectory(projectId), {
+        env: { ...env, BASE_PATH: `/${slug}` }
+      });
       if (build.code !== 0) {
         const error = new Error(`빌드에 실패했습니다 (종료 코드 ${build.code}). 로그를 확인하세요.`);
         error.status = 422;

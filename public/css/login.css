@@ -1,0 +1,59 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, "Noto Sans KR", system-ui, sans-serif;
+  background: #0c0c0e;
+  color: #f4f4f5;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: radial-gradient(ellipse at 50% 0%, #202025 0, #0c0c0e 58%);
+}
+
+.login-card {
+  width: min(100%, 420px);
+  padding: 34px;
+  border: 1px solid #303036;
+  border-radius: 18px;
+  background: #121215;
+  box-shadow: 0 24px 80px #0008;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  color: #a1a1aa;
+  font-size: 12px;
+  letter-spacing: .16em;
+}
+
+h1 { margin: 0; font-size: 28px; }
+.description { margin: 10px 0 28px; color: #a1a1aa; }
+form { display: grid; gap: 10px; }
+label { margin-top: 6px; font-size: 14px; }
+
+input {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid #35353b;
+  border-radius: 9px;
+  outline: none;
+  background: #0b0b0d;
+  color: inherit;
+  font: inherit;
+}
+
+input:focus { border-color: #8585ff; box-shadow: 0 0 0 3px #8585ff22; }
+button { min-height: 46px; margin-top: 8px; border: 0; border-radius: 9px; background: #e8e8ef; color: #111115; font: inherit; font-weight: 700; cursor: pointer; }
+button:disabled { opacity: .6; cursor: wait; }
+.error { min-height: 20px; margin: 4px 0 0; color: #ff8181; font-size: 13px; }
+
+@media (max-width: 480px) {
+  .login-card { padding: 26px 22px; }
+}
