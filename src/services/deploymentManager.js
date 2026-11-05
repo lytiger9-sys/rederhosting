@@ -11,6 +11,7 @@ import { deployPublicGitHubCommit } from "./githubImporter.js";
 import { readProjectEnvironment } from "./projectEnvironment.js";
 import { appendProjectLog } from "./projectLogs.js";
 import { normalizeProjectSlug } from "./projectSlug.js";
+import { closeProjectTerminalForProject } from "./projectTerminal.js";
 
 export async function deployProjectCommit(projectId, commitSha) {
   const project = await getProject(projectId);
@@ -35,6 +36,7 @@ export async function deployProjectCommit(projectId, commitSha) {
   let deploymentStarted = false;
   let filesDeployed = false;
   try {
+    closeProjectTerminalForProject(projectId);
     if (getProcess(projectId)) {
       const stopped = await stopProcessAndWait(projectId);
       if (!stopped) {

@@ -7,6 +7,7 @@ import { config } from "../config/env.js";
 import { listProjectFiles, normalizeProjectRelativePath } from "./fileManager.js";
 import { getProject } from "./projectManager.js";
 import { lockProject } from "../utils/projectOperationLock.js";
+import { replaceProjectDirectory } from "./projectDirectorySwap.js";
 
 const GITHUB_API = "https://api.github.com";
 const MAX_IMPORT_FILES = 1000;
@@ -266,6 +267,7 @@ export async function deployPublicGitHubCommit(projectId, repositoryUrl, commitS
   let stagingRoot;
   let replacementRoot;
   let backupRoot;
+  let preserveReplacement = false;
 
   try {
     stagingRoot = await fs.mkdtemp(path.join(os.tmpdir(), "hosting-panel-github-deploy-"));
@@ -295,14 +297,12 @@ export async function deployPublicGitHubCommit(projectId, repositoryUrl, commitS
     }
 
     await moveFilesIntoProject(projectId, replacementRoot, stagingRoot, files);
-    await fs.rename(projectRoot, backupRoot);
     try {
-      await fs.rename(replacementRoot, projectRoot);
+      await replaceProjectDirectory(projectRoot, replacementRoot, backupRoot);
     } catch (error) {
-      await fs.rename(backupRoot, projectRoot).catch(() => {});
+      preserveReplacement = Boolean(error.recoveryPending);
       throw error;
     }
-    await fs.rm(backupRoot, { recursive: true, force: true }).catch(() => {});
 
     return {
       repository: repositoryInfo.full_name || `${owner}/${repository}`,
@@ -313,7 +313,9 @@ export async function deployPublicGitHubCommit(projectId, repositoryUrl, commitS
       sizeBytes: actualTotalBytes || totalBytes
     };
   } finally {
-    if (replacementRoot) await fs.rm(replacementRoot, { recursive: true, force: true });
+    if (replacementRoot && !preserveReplacement) {
+      await fs.rm(replacementRoot, { recursive: true, force: true }).catch(() => {});
+    }
     if (stagingRoot) await fs.rm(stagingRoot, { recursive: true, force: true });
   }
 }

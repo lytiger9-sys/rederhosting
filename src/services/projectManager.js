@@ -14,6 +14,7 @@ import { appendProjectLog, clearProjectLogs } from "./projectLogs.js";
 import { cleanupPendingProjectDeletions, removeProjectDirectory } from "./projectDeletion.js";
 import { normalizeProjectSlug, validateProjectName } from "./projectSlug.js";
 import { releaseProjectPort, reserveProjectPort } from "./projectPorts.js";
+import { recoverProjectDirectoryBackups } from "./projectDirectorySwap.js";
 
 const projectIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 let creatingProject = false;
@@ -21,6 +22,7 @@ let creatingProject = false;
 export async function ensureStorage() {
   await fs.mkdir(config.projectRoot, { recursive: true });
   await cleanupPendingProjectDeletions(config.projectRoot);
+  await recoverProjectDirectoryBackups(config.projectRoot);
   const entries = await fs.readdir(config.projectRoot, { withFileTypes: true });
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
