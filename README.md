@@ -249,7 +249,7 @@ GET /api/system/resources
 
 ### `src/services/githubImporter.js`
 
-GitHub API로 공개 저장소의 커밋 기록과 트리를 읽습니다. 선택 커밋의 파일은 임시 위치에서 검증한 뒤 프로젝트 소스와 교체합니다. GitHub API 비인증 요청 한도에 도달하면 잠시 후 다시 시도해야 합니다.
+GitHub API로 공개 저장소의 커밋 기록과 트리를 읽습니다. 선택 커밋의 파일은 임시 위치에서 검증한 뒤 프로젝트 소스와 교체합니다. API 응답은 30초 동안 캐시합니다. 인증 없이 호출하면 GitHub 서버 API의 한도를 공유하므로 한도 오류가 날 수 있습니다. 계속 발생하면 GitHub 토큰을 패널 서버의 루트 `.env` 또는 Render Environment Variables에 `GITHUB_TOKEN`으로 등록하세요. 공개 저장소 조회에만 사용할 읽기 전용 토큰을 만들고, 프로젝트의 `.env`나 GitHub 저장소에는 토큰을 넣지 마세요. 한도 오류가 발생하면 응답 헤더를 바탕으로 재시도 시각을 표시합니다.
 
 ### `src/utils/processManager.js`
 

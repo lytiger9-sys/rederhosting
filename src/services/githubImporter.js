@@ -14,6 +14,8 @@ const MAX_IMPORT_FILES = 1000;
 const MAX_IMPORT_BYTES = 100 * 1024 * 1024;
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
 const DOWNLOAD_CONCURRENCY = 2;
+const GITHUB_JSON_CACHE_MS = 30_000;
+const githubJsonCache = new Map();
 
 function parseRepositoryUrl(input) {
   let url;
@@ -43,13 +45,32 @@ function parseRepositoryUrl(input) {
 }
 
 async function fetchGitHubJson(url) {
+  const cached = githubJsonCache.get(url);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.promise ? cached.promise : cached.value;
+  }
+
+  const request = fetchGitHubJsonUncached(url);
+  githubJsonCache.set(url, { promise: request, expiresAt: Date.now() + GITHUB_JSON_CACHE_MS });
+  try {
+    const value = await request;
+    githubJsonCache.set(url, { value, expiresAt: Date.now() + GITHUB_JSON_CACHE_MS });
+    return value;
+  } catch (error) {
+    githubJsonCache.delete(url);
+    throw error;
+  }
+}
+
+async function fetchGitHubJsonUncached(url) {
   let response;
   try {
     response = await fetch(url, {
       headers: {
         Accept: "application/vnd.github+json",
         "User-Agent": "hosting-panel",
-        "X-GitHub-Api-Version": "2022-11-28"
+        "X-GitHub-Api-Version": "2022-11-28",
+        ...(config.githubToken ? { Authorization: `Bearer ${config.githubToken}` } : {})
       },
       signal: AbortSignal.timeout(20_000)
     });
@@ -58,14 +79,38 @@ async function fetchGitHubJson(url) {
   }
 
   if (!response.ok) {
-    const error = new Error(
-      response.status === 404
-        ? "공개 저장소를 찾을 수 없습니다. 주소를 확인하세요."
-        : response.status === 403
-          ? "GitHub API 요청 한도에 도달했거나 요청이 제한되었습니다. 잠시 후 다시 시도하세요."
-          : `GitHub 요청 실패 (${response.status}).`
-    );
-    error.status = response.status === 404 ? 404 : 502;
+    const responseText = await response.text().catch(() => "");
+    let details = "";
+    try { details = JSON.parse(responseText).message || ""; } catch {}
+    let message;
+    let status = response.status;
+    if (response.status === 404) {
+      message = "공개 저장소를 찾을 수 없습니다. 주소를 확인하세요.";
+    } else if (response.status === 403 || response.status === 429) {
+      const remaining = response.headers.get("x-ratelimit-remaining");
+      const resetSeconds = Number(response.headers.get("x-ratelimit-reset"));
+      const retryAfter = Number(response.headers.get("retry-after"));
+      if (remaining === "0" && Number.isFinite(resetSeconds) && resetSeconds > 0) {
+        const resetDate = new Date(resetSeconds * 1000);
+        const resetAt = resetDate.toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
+        message = resetDate.getTime() > Date.now()
+          ? `GitHub API 요청 한도를 모두 사용했습니다. 한국 시간 ${resetAt} 이후 다시 시도하세요.${config.githubToken ? "" : " 서버 .env에 GITHUB_TOKEN을 설정하면 인증 요청으로 전환됩니다."}`
+          : `GitHub API 요청 한도를 모두 사용했습니다. 잠시 후 다시 시도하세요.${config.githubToken ? "" : " 서버 .env에 GITHUB_TOKEN을 설정하면 인증 요청으로 전환됩니다."}`;
+      } else if (retryAfter > 0 || /secondary rate limit|abuse detection/i.test(details)) {
+        const wait = retryAfter > 0 ? `${retryAfter}초` : "1분";
+        message = `GitHub가 요청을 잠시 제한했습니다. ${wait} 후 다시 시도하세요.`;
+      } else {
+        message = details
+          ? `GitHub가 요청을 거부했습니다: ${details}`
+          : "GitHub 요청이 제한되었습니다. 잠시 후 다시 시도하세요.";
+      }
+      status = 429;
+    } else {
+      message = details || `GitHub 요청 실패 (${response.status}).`;
+      status = 502;
+    }
+    const error = new Error(message);
+    error.status = response.status === 404 ? 404 : status;
     throw error;
   }
 
