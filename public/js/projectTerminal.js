@@ -44,6 +44,9 @@
     message.textContent = "프로젝트 폴더에서 대화형 셸을 여는 중...";
     modal.showModal();
     try {
+      if (typeof window.Terminal !== "function" || !window.FitAddon?.FitAddon) {
+        throw new Error("터미널 라이브러리를 불러오지 못했습니다. 페이지를 새로고침하고 패널 서버를 확인하세요.");
+      }
       const response = await fetch(`/api/projects/${encodeURIComponent(project)}/terminal`, { method: "POST" });
       const created = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(created.error || "터미널을 열지 못했습니다.");
@@ -53,14 +56,14 @@
       }
       sessionId = created.sessionId;
       message.textContent = `${created.shell} · 프로젝트 폴더에서 실행 중 · 명령 입력 가능`;
-      terminal = new Terminal({
+      terminal = new window.Terminal({
         cursorBlink: true,
         fontFamily: 'Consolas, "Cascadia Code", monospace',
         fontSize: 13,
         theme: { background: "#080809", foreground: "#e4e4e7", cursor: "#fafafa" },
         scrollback: 3000
       });
-      fitAddon = new FitAddon.FitAddon();
+      fitAddon = new window.FitAddon.FitAddon();
       terminal.loadAddon(fitAddon);
       terminal.open(output);
       fitAddon.fit();
