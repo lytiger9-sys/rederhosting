@@ -9,6 +9,7 @@ import {
   createProject,
   listProjects,
   getProject,
+  updateProjectCommands,
   startProject,
   stopProject,
   deleteProject
@@ -39,6 +40,14 @@ router.get("/:id", async (req, res) => {
     res.json(await getProject(req.params.id));
   } catch (error) {
     res.status(404).json({ error: error.message });
+  }
+});
+
+router.put("/:id/commands", async (req, res) => {
+  try {
+    res.json(await updateProjectCommands(req.params.id, req.body || {}));
+  } catch (error) {
+    res.status(error.status || 400).json({ error: error.message });
   }
 });
 

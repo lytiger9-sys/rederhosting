@@ -202,6 +202,31 @@ export async function getProjectDetails(id) {
   };
 }
 
+export async function updateProjectCommands(id, input = {}) {
+  const unlock = lockProject(id);
+  let project;
+  try {
+    project = await readMetadata(id);
+    const buildCommand = String(input.buildCommand ?? project.buildCommand ?? "").trim();
+    const startCommand = String(input.startCommand ?? project.startCommand ?? "").trim();
+    if (buildCommand.length > 2000 || startCommand.length > 2000) {
+      const error = new Error("커맨드는 각각 2,000자 이내로 입력하세요.");
+      error.status = 413;
+      throw error;
+    }
+    if (buildCommand.includes("\0") || startCommand.includes("\0")) {
+      throw new Error("커맨드에 사용할 수 없는 문자가 있습니다.");
+    }
+    project.buildCommand = buildCommand;
+    project.startCommand = startCommand;
+    await writeMetadata(project);
+  } finally {
+    unlock();
+  }
+  const discordSync = await publishProjectSnapshot(`프로젝트 커맨드 변경: ${project.name}`);
+  return { project: withoutEnvironment(project), discordSync };
+}
+
 export async function setProjectRepository(id, repository) {
   const project = await readMetadata(id);
   project.repositoryUrl = repository.repositoryUrl;

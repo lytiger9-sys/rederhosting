@@ -9,6 +9,7 @@ let logsRefreshTimer = null;
 let projectDetailId = null;
 let projectDetailTab = "overview";
 let dashboardPage = "stats";
+let detailLogsRefreshTimer = null;
 let projectsById = new Map();
 const operationFeedback = new Map();
 
@@ -82,6 +83,7 @@ async function loadSystem() {
       `${data.memory.usagePercent}% ` +
       `(${formatBytes(data.memory.usedBytes)} / ${formatBytes(data.memory.totalBytes)})`;
     $("#publicIp").textContent = data.publicIp || "확인 불가";
+    window.updateResourceChart?.(data);
   } catch {
     $("#cpu").textContent = "오류";
     $("#memory").textContent = "오류";
@@ -97,7 +99,6 @@ async function loadProjects() {
   ).filter(Boolean));
   projectsById = new Map(projects.map((project) => [project.id, project]));
   $("#projectCount").textContent = projects.length;
-  if (projectDetailId) renderProjectDetail();
 
   $("#projects").innerHTML = projects.map((project) => `
     ${renderProjectCard(project, expandedIds.has(project.id))}
@@ -124,8 +125,11 @@ function renderProjectCard(project, expanded = false) {
 
   return `
     <article class="project" data-project-id="${escapeHtml(project.id)}">
-      <button type="button" class="project-info" data-action="details" data-project-id="${escapeHtml(project.id)}" aria-label="${escapeHtml(project.name)} 상세 정보 보기" aria-expanded="${expanded}">
+      <div class="project-heading">
+      <button type="button" class="project-toggle" data-action="details" data-project-id="${escapeHtml(project.id)}" aria-label="${escapeHtml(project.name)} 간단 정보 펼치기" aria-expanded="${expanded}">
         <span class="project-chevron" aria-hidden="true">▸</span>
+      </button>
+      <button type="button" class="project-info" data-action="project-detail" data-project-id="${escapeHtml(project.id)}" aria-label="${escapeHtml(project.name)} 상세 페이지 열기">
         <span class="project-info-text">
         <strong>${escapeHtml(project.name)}</strong>
         <small>
@@ -134,6 +138,7 @@ function renderProjectCard(project, expanded = false) {
         </small>
         </span>
       </button>
+      </div>
 
       <div class="project-actions">
         <button type="button" data-action="files" data-project-id="${escapeHtml(project.id)}" ${busy ? "disabled" : ""}>소스 파일</button>
@@ -156,8 +161,6 @@ function renderProjectCard(project, expanded = false) {
         <div><span>배포 커밋</span><strong>${escapeHtml(project.deployedCommit ? project.deployedCommit.slice(0, 7) : "배포 전")}</strong></div>
         <div><span>빌드 커맨드</span><strong>${escapeHtml(project.buildCommand || "설정되지 않음")}</strong></div>
         <div><span>실행 커맨드</span><strong>${escapeHtml(project.startCommand || "설정되지 않음")}</strong></div>
-        <button type="button" data-action="environment" data-project-id="${escapeHtml(project.id)}">.env 보기</button>
-        <button type="button" class="detail-open-button" data-action="project-detail" data-project-id="${escapeHtml(project.id)}">프로젝트 상세 보기</button>
       </div>
     </article>
   `;
@@ -204,9 +207,7 @@ $("#projects").addEventListener("click", async (event) => {
   if (action === "project-detail") {
     showProjectDetail(projectId);
   } else if (action === "files") {
-    await openFileManager(projectId);
-  } else if (action === "environment") {
-    await openEnvironmentModal(projectId);
+    await openProjectRepository(projectId);
   } else if (action === "details") {
     toggleProjectDetails(button);
   } else if (action === "deploy") {
@@ -237,12 +238,14 @@ $("#sidebarNav").addEventListener("click", (event) => {
 });
 
 function showDashboardPage(page) {
+  stopProjectDetailLogRefresh();
   dashboardPage = page === "projects" ? "projects" : "stats";
   projectDetailId = null;
   activeProjectId = null;
   $("#fileManager").hidden = true;
   $("#projectDetailPage").hidden = true;
   $("#statsSection").hidden = dashboardPage !== "stats";
+  $("#resourceChartPanel").hidden = dashboardPage !== "stats";
   $("#projectsSection").hidden = dashboardPage !== "projects";
   $("#pageHeading").hidden = false;
   $("#pageHeading .eyebrow").textContent = dashboardPage === "stats" ? "SERVER / OVERVIEW" : "SERVER / PROJECTS";
@@ -257,12 +260,14 @@ function showDashboardPage(page) {
 }
 
 function showProjectDetail(projectId) {
+  stopProjectDetailLogRefresh();
   if (!projectsById.has(projectId)) return;
   activeProjectId = null;
   $("#fileManager").hidden = true;
   projectDetailId = projectId;
   projectDetailTab = "overview";
   $("#statsSection").hidden = true;
+  $("#resourceChartPanel").hidden = true;
   $("#projectsSection").hidden = true;
   $("#pageHeading").hidden = true;
   $("#projectDetailPage").hidden = false;
@@ -287,6 +292,7 @@ function renderProjectDetail() {
   const address = project.slug
     ? `<a href="/${encodeURIComponent(project.slug)}/" target="_blank" rel="noopener noreferrer">${escapeHtml(location.host + "/" + project.slug + "/")}</a>`
     : "사용할 수 없음";
+  const repositoryUrl = getPublicRepositoryUrl(project.repositoryUrl);
   const contentByTab = {
     overview: `
       <div class="detail-section-heading"><p class="eyebrow">OVERVIEW</p><h2>프로젝트 개요</h2></div>
@@ -296,20 +302,25 @@ function renderProjectDetail() {
         <article class="detail-summary-card"><span>실행 포트</span><strong>${project.port ? escapeHtml(project.port) : "실행 시 할당"}</strong></article>
         <article class="detail-summary-card"><span>배포 커밋</span><strong>${escapeHtml(project.deployedCommit ? project.deployedCommit.slice(0, 7) : "배포 전")}</strong></article>
       </div>
-      <div class="detail-info-card">
-        <div><span>GitHub 저장소</span><strong>${escapeHtml(project.repositoryUrl || "연결 안 됨")}</strong></div>
-        <div><span>빌드 커맨드</span><code>${escapeHtml(project.buildCommand || "설정되지 않음")}</code></div>
-        <div><span>실행 커맨드</span><code>${escapeHtml(project.startCommand || "설정되지 않음")}</code></div>
-      </div>`,
+      <form id="projectCommandsForm" class="detail-commands-form">
+        <div class="detail-section-heading"><p class="eyebrow">BUILD SETTINGS</p><h2>빌드 및 실행 커맨드</h2></div>
+        <label>Build Command<input id="detailBuildCommand" value="${escapeHtml(project.buildCommand || "")}" placeholder="예: npm install"></label>
+        <label>Start Command<input id="detailStartCommand" value="${escapeHtml(project.startCommand || "")}" placeholder="예: npm start"></label>
+        <div class="detail-commands-footer"><p id="projectCommandsMessage" class="file-message" role="status" aria-live="polite">저장 후 실행 또는 배포할 때 적용됩니다.</p><button type="submit">설정 저장</button></div>
+      </form>`,
     deploys: `
-      <div class="detail-section-heading"><p class="eyebrow">DEPLOYS</p><h2>배포</h2></div>
-      <article class="detail-action-card"><div><strong>GitHub 커밋 배포</strong><p>연결된 공개 저장소의 커밋 기록을 확인하고 배포할 버전을 선택합니다.</p></div><button type="button" data-detail-action="deploy">커밋 기록 보기</button></article>`,
+      <div class="detail-section-heading"><p class="eyebrow">DEPLOYS</p><h2>배포 기록</h2></div>
+      <p id="projectDetailDeployMessage" class="file-message" role="status" aria-live="polite">커밋 기록을 불러오는 중...</p>
+      <div id="projectDetailCommitList" class="commit-list"></div>`,
     logs: `
       <div class="detail-section-heading"><p class="eyebrow">LOGS</p><h2>프로젝트 로그</h2></div>
-      <article class="detail-action-card"><div><strong>실행 및 빌드 로그</strong><p>프로젝트의 실행 상태와 최근 출력을 확인합니다.</p></div><button type="button" data-detail-action="logs">로그 열기</button></article>`,
+      <div class="logs-toolbar"><span id="projectDetailLogsStatus" class="muted">로그를 불러오는 중...</span><button type="button" data-detail-action="refresh-logs">새로고침</button></div>
+      <pre id="projectDetailLogsOutput" class="logs-output">로그를 불러오는 중...</pre>`,
     files: `
       <div class="detail-section-heading"><p class="eyebrow">SOURCE FILES</p><h2>소스 파일</h2></div>
-      <article class="detail-action-card"><div><strong>GitHub 소스</strong><p>연결된 저장소의 프로젝트 파일을 확인하고 배포합니다.</p></div><button type="button" data-detail-action="files">소스 파일 열기</button></article>`,
+      <article class="detail-action-card"><div><strong>GitHub 저장소</strong><p>${escapeHtml(project.repository || "공개 저장소가 연결되지 않았습니다.")}</p></div>${repositoryUrl
+        ? `<a class="detail-view-link" href="${escapeHtml(repositoryUrl)}" target="_blank" rel="noopener noreferrer">보기</a>`
+        : '<button type="button" data-detail-action="connect-repo">저장소 연결</button>'}</article>`,
     environment: `
       <div class="detail-section-heading"><p class="eyebrow">ENVIRONMENT</p><h2>환경변수</h2></div>
       <article class="detail-action-card"><div><strong>프로젝트 .env</strong><p>저장된 환경변수를 확인하고 수정합니다.</p></div><button type="button" data-detail-action="environment">환경변수 열기</button></article>`,
@@ -318,11 +329,18 @@ function renderProjectDetail() {
       <article class="detail-action-card"><div><strong>대화형 터미널</strong><p>프로젝트 폴더에서 명령을 입력하고 결과를 확인합니다.</p></div><button type="button" data-detail-action="terminal">터미널 열기</button></article>`
   };
   $("#projectDetailContent").innerHTML = contentByTab[projectDetailTab] || contentByTab.overview;
+  if (projectDetailTab === "deploys") loadProjectDetailCommits();
+  if (projectDetailTab === "logs") {
+    stopProjectDetailLogRefresh();
+    refreshProjectDetailLogs();
+    detailLogsRefreshTimer = setInterval(refreshProjectDetailLogs, 2000);
+  }
 }
 
 $("#projectDetailNav").addEventListener("click", (event) => {
   const button = event.target.closest("[data-detail-tab]");
   if (!button) return;
+  stopProjectDetailLogRefresh();
   projectDetailTab = button.dataset.detailTab;
   $("#projectDetailNav").querySelectorAll("[data-detail-tab]").forEach((item) => {
     item.classList.toggle("active", item === button);
@@ -333,12 +351,50 @@ $("#projectDetailNav").addEventListener("click", (event) => {
 $("#projectDetailContent").addEventListener("click", async (event) => {
   const button = event.target.closest("[data-detail-action]");
   if (!button || !projectDetailId) return;
-  if (button.dataset.detailAction === "deploy") await openDeploymentModal(projectDetailId);
-  else if (button.dataset.detailAction === "logs") await openLogsModal(projectDetailId);
-  else if (button.dataset.detailAction === "files") await openFileManager(projectDetailId);
+  if (button.dataset.detailAction === "deploy-commit") {
+    deploymentProjectId = projectDetailId;
+    const commit = { sha: button.dataset.commit, message: "", author: "", date: "" };
+    await deployCommit(commit, button, "#projectDetailCommitList", "#projectDetailDeployMessage");
+  } else if (button.dataset.detailAction === "refresh-logs") await refreshProjectDetailLogs();
+  else if (button.dataset.detailAction === "connect-repo") await openFileManager(projectDetailId);
   else if (button.dataset.detailAction === "environment") await openEnvironmentModal(projectDetailId);
   else if (button.dataset.detailAction === "terminal") {
     await window.openProjectTerminal(projectDetailId, projectsById.get(projectDetailId)?.name || "프로젝트");
+  }
+});
+
+$("#projectDetailContent").addEventListener("submit", async (event) => {
+  if (event.target.id !== "projectCommandsForm" || !projectDetailId) return;
+  event.preventDefault();
+  const button = event.target.querySelector('button[type="submit"]');
+  button.disabled = true;
+  $("#projectCommandsMessage").textContent = "저장 중...";
+  $("#projectCommandsMessage").classList.remove("error");
+  try {
+    const result = await readResponse(await fetch(projectUrl(projectDetailId, "/commands"), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        buildCommand: $("#detailBuildCommand").value,
+        startCommand: $("#detailStartCommand").value
+      })
+    }));
+    const currentProjectId = projectDetailId;
+    projectsById.set(currentProjectId, { ...projectsById.get(currentProjectId), ...result.project });
+    renderProjectDetail();
+    const sync = result.discordSync;
+    $("#projectCommandsMessage").textContent = sync?.configured && !sync.ok
+      ? `설정은 저장했지만 Discord 동기화에 실패했습니다: ${sync.error || "연결을 확인하세요."}`
+      : "커맨드를 저장했습니다. 다음 실행 또는 배포부터 적용됩니다.";
+  } catch (error) {
+    const message = $("#projectCommandsMessage");
+    if (message) {
+      message.textContent = error.message;
+      message.classList.add("error");
+    }
+  } finally {
+    const saveButton = $("#projectCommandsForm button[type=\"submit\"]");
+    if (saveButton) saveButton.disabled = false;
   }
 });
 
@@ -352,9 +408,7 @@ $("#projectForm").addEventListener("submit", async (event) => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name: $("#projectName").value,
-        buildCommand: $("#buildCommand").value,
-        startCommand: $("#startCommand").value
+        name: $("#projectName").value
       })
     });
 
@@ -377,6 +431,53 @@ function projectUrl(projectId, suffix = "") {
 
 function projectFilesUrl(suffix = "") {
   return projectUrl(activeProjectId, `/files${suffix}`);
+}
+
+function getPublicRepositoryUrl(value) {
+  try {
+    const url = new URL(String(value || ""));
+    if (url.protocol === "https:" && url.hostname.toLowerCase() === "github.com" && !url.username && !url.password) {
+      return url.href;
+    }
+  } catch {}
+  return "";
+}
+
+async function openProjectRepository(projectId) {
+  const repositoryUrl = getPublicRepositoryUrl(projectsById.get(projectId)?.repositoryUrl);
+  if (repositoryUrl) {
+    window.open(repositoryUrl, "_blank", "noopener,noreferrer");
+    return;
+  }
+  await openFileManager(projectId);
+}
+
+async function loadProjectDetailCommits() {
+  const projectId = projectDetailId;
+  const list = $("#projectDetailCommitList");
+  const message = $("#projectDetailDeployMessage");
+  if (!projectId || !list || !message) return;
+  const project = projectsById.get(projectId);
+  if (!project?.repositoryUrl) {
+    list.replaceChildren();
+    message.textContent = "먼저 소스 파일에서 공개 GitHub 저장소를 연결하세요.";
+    return;
+  }
+
+  deploymentProjectId = projectId;
+  list.replaceChildren();
+  message.textContent = "커밋 기록을 불러오는 중...";
+  message.classList.remove("error");
+  try {
+    const result = await readResponse(await fetch(projectUrl(projectId, "/github/commits")));
+    if (projectDetailId !== projectId || projectDetailTab !== "deploys") return;
+    message.textContent = `${result.repository} · ${result.branch} 브랜치의 최근 커밋`;
+    for (const commit of result.commits) renderCommit(commit, "#projectDetailCommitList", "#projectDetailDeployMessage");
+    if (!result.commits.length) list.textContent = "표시할 커밋이 없습니다.";
+  } catch (error) {
+    message.textContent = error.message;
+    message.classList.add("error");
+  }
 }
 
 async function openDeploymentModal(projectId) {
@@ -405,7 +506,7 @@ async function openDeploymentModal(projectId) {
   }
 }
 
-function renderCommit(commit) {
+function renderCommit(commit, listSelector = "#commitList", messageSelector = "#deploymentMessage") {
   const row = document.createElement("article");
   row.className = "commit-row";
   const details = document.createElement("div");
@@ -419,16 +520,18 @@ function renderCommit(commit) {
   const button = document.createElement("button");
   button.type = "button";
   button.textContent = current ? "이 커밋 재배포" : "이 커밋 배포";
-  button.addEventListener("click", () => deployCommit(commit, button));
+  button.addEventListener("click", () => deployCommit(commit, button, listSelector, messageSelector));
   row.append(details, button);
-  $("#commitList").append(row);
+  $(listSelector).append(row);
 }
 
-async function deployCommit(commit, button) {
+async function deployCommit(commit, button, listSelector = "#commitList", messageSelector = "#deploymentMessage") {
   if (!deploymentProjectId) return;
-  for (const item of $("#commitList").querySelectorAll("button")) item.disabled = true;
-  $("#deploymentMessage").classList.remove("error");
-  $("#deploymentMessage").textContent = `${commit.sha.slice(0, 7)} 커밋을 받아 빌드하고 실행하는 중...`;
+  const list = $(listSelector);
+  const message = $(messageSelector);
+  for (const item of list.querySelectorAll("button")) item.disabled = true;
+  message.classList.remove("error");
+  message.textContent = `${commit.sha.slice(0, 7)} 커밋을 받아 빌드하고 실행하는 중...`;
   button.textContent = "배포 중...";
   try {
     const result = await readResponse(await fetch(projectUrl(deploymentProjectId, "/github/deploy"), {
@@ -436,14 +539,18 @@ async function deployCommit(commit, button) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ commit: commit.sha })
     }));
-    $("#deploymentMessage").textContent = `${result.commit.slice(0, 7)} 배포 완료 · ${result.fileCount}개 파일 · 빌드 후 실행 중`;
+    message.textContent = `${result.commit.slice(0, 7)} 배포 완료 · ${result.fileCount}개 파일 · 빌드 후 실행 중`;
     await refresh();
-    for (const item of $("#commitList").querySelectorAll("button")) item.disabled = false;
+    if (listSelector === "#projectDetailCommitList") {
+      await loadProjectDetailCommits();
+      return;
+    }
+    for (const item of list.querySelectorAll("button")) item.disabled = false;
     button.textContent = "이 커밋 재배포";
   } catch (error) {
-    $("#deploymentMessage").textContent = error.message;
-    $("#deploymentMessage").classList.add("error");
-    for (const item of $("#commitList").querySelectorAll("button")) item.disabled = false;
+    message.textContent = error.message;
+    message.classList.add("error");
+    for (const item of list.querySelectorAll("button")) item.disabled = false;
     button.textContent = "이 커밋 배포";
   }
 }
@@ -466,16 +573,40 @@ async function refreshProjectLogs() {
     const result = await readResponse(await fetch(projectUrl(logsProjectId, "/logs?lines=1000"), {
       cache: "no-store"
     }));
-    $("#logsOutput").textContent = result.logs || "아직 기록된 로그가 없습니다.";
+    const logOutput = $("#logsOutput");
+    const previousScrollTop = logOutput.scrollTop;
+    logOutput.textContent = result.logs || "아직 기록된 로그가 없습니다.";
+    logOutput.scrollTop = previousScrollTop;
     const status = result.status || "상태 정보 없음";
     const lineCount = Number.isFinite(result.lineCount)
       ? result.lineCount
       : (result.logs ? result.logs.split("\n").length : 0);
     $("#logsStatus").textContent = `${status} · 최근 로그 ${lineCount}줄`;
-    $("#logsOutput").scrollTop = $("#logsOutput").scrollHeight;
   } catch (error) {
     $("#logsOutput").textContent = error.message;
   }
+}
+
+async function refreshProjectDetailLogs() {
+  if (projectDetailTab !== "logs" || !projectDetailId) return;
+  const output = $("#projectDetailLogsOutput");
+  if (!output) return;
+  try {
+    const result = await readResponse(await fetch(projectUrl(projectDetailId, "/logs?lines=1000"), {
+      cache: "no-store"
+    }));
+    const previousScrollTop = output.scrollTop;
+    output.textContent = result.logs || "아직 기록된 로그가 없습니다.";
+    output.scrollTop = previousScrollTop;
+    $("#projectDetailLogsStatus").textContent = `${projectStatusLabel(result.status)} · 최근 로그 ${result.lineCount}줄`;
+  } catch (error) {
+    output.textContent = error.message;
+  }
+}
+
+function stopProjectDetailLogRefresh() {
+  clearInterval(detailLogsRefreshTimer);
+  detailLogsRefreshTimer = null;
 }
 
 function closeLogsModal() {
@@ -783,8 +914,6 @@ $("#closeFileManagerButton").addEventListener("click", () => {
   $("#fileManager").hidden = true;
   activeProjectId = null;
 });
-
-$("#refreshButton").addEventListener("click", refresh);
 
 function escapeHtml(value) {
   return String(value)
