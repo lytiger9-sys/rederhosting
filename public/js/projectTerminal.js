@@ -1,7 +1,7 @@
 (() => {
   const modal = document.querySelector("#terminalModal");
-  const output = document.querySelector("#terminalOutput");
-  const message = document.querySelector("#terminalMessage");
+  let output = document.querySelector("#terminalOutput");
+  let message = document.querySelector("#terminalMessage");
   const closeButton = document.querySelector("#closeTerminalButton");
   let terminal = null;
   let fitAddon = null;
@@ -9,6 +9,7 @@
   let projectId = null;
   let sessionId = null;
   let resizeObserver = null;
+  let inlineSession = false;
 
   function send(type, values = {}) {
     if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type, ...values }));
@@ -29,7 +30,10 @@
     terminal?.dispose();
     terminal = null;
     fitAddon = null;
-    output.replaceChildren();
+    output?.replaceChildren();
+    output = document.querySelector("#terminalOutput");
+    message = document.querySelector("#terminalMessage");
+    inlineSession = false;
     if (oldProjectId && oldSessionId) {
       await fetch(`/api/projects/${encodeURIComponent(oldProjectId)}/terminal/${encodeURIComponent(oldSessionId)}`, {
         method: "DELETE"
@@ -37,12 +41,15 @@
     }
   }
 
-  async function open(project, name) {
+  async function open(project, name, inline = false) {
     await closeSession();
     projectId = project;
     document.querySelector("#terminalTitle").textContent = `${name} 터미널`;
+    inlineSession = inline;
+    output = document.querySelector(inline ? "#detailTerminalOutput" : "#terminalOutput");
+    message = document.querySelector(inline ? "#detailTerminalMessage" : "#terminalMessage");
     message.textContent = "프로젝트 폴더에서 대화형 셸을 여는 중...";
-    modal.showModal();
+    if (!inline) modal.showModal();
     try {
       if (typeof window.Terminal !== "function" || !window.FitAddon?.FitAddon) {
         throw new Error("터미널 라이브러리를 불러오지 못했습니다. 페이지를 새로고침하고 패널 서버를 확인하세요.");
@@ -50,7 +57,7 @@
       const response = await fetch(`/api/projects/${encodeURIComponent(project)}/terminal`, { method: "POST" });
       const created = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(created.error || "터미널을 열지 못했습니다.");
-      if (projectId !== project || !modal.open) {
+      if (projectId !== project || (inline ? !document.querySelector("#detailTerminalOutput") : !modal.open)) {
         await fetch(`/api/projects/${encodeURIComponent(project)}/terminal/${encodeURIComponent(created.sessionId)}`, { method: "DELETE" });
         return;
       }
@@ -101,5 +108,7 @@
 
   closeButton.addEventListener("click", () => modal.close());
   modal.addEventListener("close", closeSession);
-  window.openProjectTerminal = open;
+  window.openProjectTerminal = (project, name) => open(project, name, false);
+  window.openProjectTerminalInline = (project, name) => open(project, name, true);
+  window.closeProjectTerminalInline = () => inlineSession ? closeSession() : Promise.resolve();
 })();

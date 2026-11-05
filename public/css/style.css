@@ -1120,8 +1120,10 @@ textarea:focus {
 
 .detail-layout {
   display: grid;
-  grid-template-columns: 190px minmax(0, 1fr);
-  gap: 24px;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: 18px;
+  width: calc(100% + 96px);
+  margin-left: -48px;
   min-height: 440px;
 }
 
@@ -1183,7 +1185,72 @@ textarea:focus {
 
 .detail-content {
   min-width: 0;
-  padding: 18px 20px;
+  padding: 18px 24px;
+}
+
+.logs-toolbar {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.logs-toolbar > span {
+  flex: 1;
+  font-size: 11px;
+}
+
+.log-range-control select {
+  min-height: 34px;
+  padding: 6px 28px 6px 10px;
+  font-size: 12px;
+}
+
+.logs-list {
+  overflow: auto;
+  padding: 0;
+  white-space: normal;
+}
+
+.log-day-group h3 {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0;
+  padding: 8px 12px;
+  border-bottom: 1px solid #343439;
+  background: #111113;
+  color: #d4d4d8;
+  font: 500 11px system-ui, sans-serif;
+}
+
+.log-row {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 26px;
+  align-items: start;
+  padding: 4px 12px;
+  border-bottom: 1px solid #19191c;
+  color: #e4e4e7;
+  font: 12px/1.5 Consolas, "Cascadia Code", monospace;
+}
+
+.log-row time {
+  color: #a1a1a8;
+  white-space: nowrap;
+}
+
+.log-row span {
+  overflow-wrap: anywhere;
+}
+
+.detail-terminal-output {
+  width: 100%;
+  min-height: 420px;
+  height: min(62vh, 680px);
+  padding: 10px;
 }
 
 .detail-section-heading {
@@ -1403,6 +1470,11 @@ textarea:focus {
 }
 
 @media (max-width: 900px) {
+  .detail-layout {
+    width: auto;
+    margin-left: 0;
+  }
+
   .sidebar {
     width: 205px;
   }
@@ -1452,6 +1524,9 @@ textarea:focus {
 
   .detail-layout {
     grid-template-columns: 1fr;
+    width: auto;
+    max-width: none;
+    margin-left: 0;
     gap: 0;
   }
 
@@ -1477,6 +1552,21 @@ textarea:focus {
 
   .detail-content {
     padding: 20px 0;
+  }
+
+  .logs-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .log-row {
+    grid-template-columns: 82px minmax(0, 1fr);
+    gap: 8px;
+    font-size: 11px;
+  }
+
+  .detail-terminal-output {
+    min-height: 320px;
+    height: 55vh;
   }
 
   .detail-action-card {

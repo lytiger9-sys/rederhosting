@@ -10,6 +10,7 @@ let projectDetailId = null;
 let projectDetailTab = "overview";
 let dashboardPage = "stats";
 let detailLogsRefreshTimer = null;
+let projectDetailLogsInitialLoad = false;
 let projectsById = new Map();
 const operationFeedback = new Map();
 
@@ -239,6 +240,7 @@ $("#sidebarNav").addEventListener("click", (event) => {
 
 function showDashboardPage(page) {
   stopProjectDetailLogRefresh();
+  window.closeProjectTerminalInline?.();
   dashboardPage = page === "projects" ? "projects" : "stats";
   projectDetailId = null;
   activeProjectId = null;
@@ -314,8 +316,11 @@ function renderProjectDetail() {
       <div id="projectDetailCommitList" class="commit-list"></div>`,
     logs: `
       <div class="detail-section-heading"><p class="eyebrow">LOGS</p><h2>프로젝트 로그</h2></div>
-      <div class="logs-toolbar"><span id="projectDetailLogsStatus" class="muted">로그를 불러오는 중...</span><button type="button" data-detail-action="refresh-logs">새로고침</button></div>
-      <pre id="projectDetailLogsOutput" class="logs-output">로그를 불러오는 중...</pre>`,
+      <div class="logs-toolbar">
+        <label class="log-range-control"><span class="visually-hidden">로그 조회 기간</span><select id="projectDetailLogRange"><option value="1h">최근 1시간</option><option value="6h">최근 6시간</option><option value="24h">최근 24시간</option><option value="2d" selected>최근 2일</option><option value="7d">최근 7일</option><option value="all">전체 로그</option></select></label>
+        <span id="projectDetailLogsStatus" class="muted">로그를 불러오는 중...</span><button type="button" data-detail-action="refresh-logs">새로고침</button>
+      </div>
+      <div id="projectDetailLogsOutput" class="logs-output logs-list" aria-live="polite">로그를 불러오는 중...</div>`,
     files: `
       <div class="detail-section-heading"><p class="eyebrow">SOURCE FILES</p><h2>소스 파일</h2></div>
       <article class="detail-action-card"><div><strong>GitHub 저장소</strong><p>${escapeHtml(project.repository || "공개 저장소가 연결되지 않았습니다.")}</p></div>${repositoryUrl
@@ -326,14 +331,21 @@ function renderProjectDetail() {
       <article class="detail-action-card"><div><strong>프로젝트 .env</strong><p>저장된 환경변수를 확인하고 수정합니다.</p></div><button type="button" data-detail-action="environment">환경변수 열기</button></article>`,
     terminal: `
       <div class="detail-section-heading"><p class="eyebrow">SHELL</p><h2>프로젝트 터미널</h2></div>
-      <article class="detail-action-card"><div><strong>대화형 터미널</strong><p>프로젝트 폴더에서 명령을 입력하고 결과를 확인합니다.</p></div><button type="button" data-detail-action="terminal">터미널 열기</button></article>`
+      <p id="detailTerminalMessage" class="environment-description">프로젝트 폴더에서 대화형 터미널을 연결하는 중...</p>
+      <div id="detailTerminalOutput" class="terminal-output detail-terminal-output" aria-label="프로젝트 대화형 터미널"></div>`
   };
   $("#projectDetailContent").innerHTML = contentByTab[projectDetailTab] || contentByTab.overview;
   if (projectDetailTab === "deploys") loadProjectDetailCommits();
   if (projectDetailTab === "logs") {
     stopProjectDetailLogRefresh();
+    projectDetailLogsInitialLoad = true;
     refreshProjectDetailLogs();
     detailLogsRefreshTimer = setInterval(refreshProjectDetailLogs, 2000);
+  }
+  if (projectDetailTab === "terminal") {
+    window.openProjectTerminalInline?.(projectDetailId, project.name);
+  } else {
+    window.closeProjectTerminalInline?.();
   }
 }
 
@@ -346,6 +358,13 @@ $("#projectDetailNav").addEventListener("click", (event) => {
     item.classList.toggle("active", item === button);
   });
   renderProjectDetail();
+});
+
+$("#projectDetailContent").addEventListener("change", (event) => {
+  if (event.target.id === "projectDetailLogRange") {
+    projectDetailLogsInitialLoad = true;
+    refreshProjectDetailLogs();
+  }
 });
 
 $("#projectDetailContent").addEventListener("click", async (event) => {
@@ -592,15 +611,60 @@ async function refreshProjectDetailLogs() {
   const output = $("#projectDetailLogsOutput");
   if (!output) return;
   try {
-    const result = await readResponse(await fetch(projectUrl(projectDetailId, "/logs?lines=1000"), {
+    const range = document.querySelector("#projectDetailLogRange")?.value || "2d";
+    const rangeSince = { "1h": 60 * 60_000, "6h": 6 * 60 * 60_000, "24h": 24 * 60 * 60_000, "2d": 2 * 24 * 60 * 60_000, "7d": 7 * 24 * 60 * 60_000 };
+    const query = range === "all" ? "?all=1" : `?from=${encodeURIComponent(new Date(Date.now() - rangeSince[range]).toISOString())}`;
+    const result = await readResponse(await fetch(projectUrl(projectDetailId, `/logs${query}`), {
       cache: "no-store"
     }));
+    if (projectDetailTab !== "logs" || !output.isConnected) return;
     const previousScrollTop = output.scrollTop;
-    output.textContent = result.logs || "아직 기록된 로그가 없습니다.";
-    output.scrollTop = previousScrollTop;
+    renderProjectLogLines(output, result.logs);
+    if (projectDetailLogsInitialLoad) {
+      output.scrollTop = output.scrollHeight;
+      projectDetailLogsInitialLoad = false;
+    } else output.scrollTop = previousScrollTop;
     $("#projectDetailLogsStatus").textContent = `${projectStatusLabel(result.status)} · 최근 로그 ${result.lineCount}줄`;
   } catch (error) {
     output.textContent = error.message;
+  }
+}
+
+function renderProjectLogLines(container, rawLogs) {
+  container.replaceChildren();
+  const lines = String(rawLogs || "").split("\n").filter(Boolean);
+  if (!lines.length) {
+    container.textContent = "선택한 기간에 로그가 없습니다.";
+    return;
+  }
+  let currentDay = "";
+  let dayGroup;
+  for (const line of lines) {
+    const match = /^\[(.*?)\]\s*(.*)$/.exec(line);
+    const timestamp = match ? new Date(match[1]) : null;
+    const message = match?.[2] || line;
+    const validTimestamp = timestamp && Number.isFinite(timestamp.getTime());
+    const dayLabel = validTimestamp ? timestamp.toLocaleDateString() : "시간 정보 없음";
+    if (dayLabel !== currentDay) {
+      currentDay = dayLabel;
+      dayGroup = document.createElement("section");
+      dayGroup.className = "log-day-group";
+      const heading = document.createElement("h3");
+      heading.textContent = dayLabel;
+      dayGroup.append(heading);
+      container.append(dayGroup);
+    }
+    const row = document.createElement("div");
+    row.className = "log-row";
+    const time = document.createElement("time");
+    if (validTimestamp) {
+      time.dateTime = timestamp.toISOString();
+      time.textContent = timestamp.toLocaleTimeString();
+    } else time.textContent = "--:--:--";
+    const content = document.createElement("span");
+    content.textContent = message;
+    row.append(time, content);
+    dayGroup.append(row);
   }
 }
 

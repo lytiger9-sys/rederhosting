@@ -48,6 +48,25 @@ export async function readProjectLogs(projectId, maxLines = 500) {
   }
 }
 
+export async function readProjectLogsInRange(projectId, from, to = new Date()) {
+  const activeQueue = queues.get(projectId);
+  if (activeQueue) await activeQueue.catch(() => {});
+  try {
+    const contents = await fs.readFile(logPath(projectId), "utf8");
+    const start = from ? new Date(from).getTime() : Number.NEGATIVE_INFINITY;
+    const end = to ? new Date(to).getTime() : Number.POSITIVE_INFINITY;
+    return contents.split(/\r?\n/).filter((line) => {
+      const match = /^\[(.*?)\]/.exec(line);
+      if (!match) return false;
+      const timestamp = new Date(match[1]).getTime();
+      return Number.isFinite(timestamp) && timestamp >= start && timestamp <= end;
+    }).join("\n");
+  } catch (error) {
+    if (error.code === "ENOENT") return "";
+    throw error;
+  }
+}
+
 export async function clearProjectLogs(projectId) {
   await serialize(projectId, () => fs.rm(logPath(projectId), { force: true }));
 }
