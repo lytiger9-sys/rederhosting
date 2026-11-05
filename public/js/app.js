@@ -729,7 +729,7 @@ function renderProjectLogLines(container, rawLogs) {
     const content = document.createElement("span");
     content.textContent = message;
     const errorLine = /^\[(?:ERROR|ERR|BUILD_ERR)\]/i.test(message) || /\b(error|failed)\b|오류|실패/i.test(message);
-    const buildLine = /^\[BUILD\]/i.test(message) || /빌드 (?:시작|종료|실행|커맨드)/i.test(message);
+    const buildLine = /^\[BUILD\]/i.test(message) || /(?:빌드 (?:시작|종료|실행|커맨드)|실행 시작):/i.test(message);
     if (errorLine) row.classList.add("log-row-error");
     else if (buildLine) row.classList.add("log-row-build");
     row.append(time, content);
