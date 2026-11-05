@@ -419,6 +419,7 @@ async function openEnvironmentModal(projectId) {
   $("#environmentMessage").textContent = "불러오는 중...";
   $("#environmentMessage").classList.remove("error");
   $("#environmentRows").replaceChildren();
+  $("#environmentTextImport").value = "";
   $("#environmentModal").showModal();
   try {
     const result = await readResponse(await fetch(projectUrl(projectId, "/environment")));
@@ -470,10 +471,28 @@ function addEnvironmentRow(key = "", value = "") {
 }
 
 $("#addEnvironmentButton").addEventListener("click", () => addEnvironmentRow());
+function applyEnvironmentText() {
+  const result = window.parseEnvironmentText($("#environmentTextImport").value);
+  const message = $("#environmentMessage");
+  if (result.error) {
+    message.textContent = result.error;
+    message.classList.add("error");
+    return;
+  }
+
+  $("#environmentRows").replaceChildren();
+  for (const variable of result.variables) addEnvironmentRow(variable.key, variable.value);
+  message.textContent = `${result.variables.length}개 변수를 입력란에 반영했습니다. 저장 버튼을 눌러 저장하세요.`;
+  message.classList.remove("error");
+}
+
+$("#applyEnvironmentTextButton").addEventListener("click", applyEnvironmentText);
+$("#environmentTextImport").addEventListener("paste", () => setTimeout(applyEnvironmentText, 0));
 $("#closeEnvironmentButton").addEventListener("click", () => $("#environmentModal").close());
 $("#cancelEnvironmentButton").addEventListener("click", () => $("#environmentModal").close());
 $("#environmentModal").addEventListener("close", () => {
   $("#environmentRows").replaceChildren();
+  $("#environmentTextImport").value = "";
   environmentProjectId = null;
 });
 $("#environmentForm").addEventListener("submit", async (event) => {

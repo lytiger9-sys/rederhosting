@@ -130,6 +130,12 @@
         <button id="closeEnvironmentButton" type="button" aria-label="닫기">닫기</button>
       </div>
       <p class="environment-description">저장한 변수는 프로젝트 루트의 .env 파일에 저장되며, 프로젝트를 다시 실행할 때 적용됩니다.</p>
+      <label class="environment-import-label" for="environmentTextImport">여러 줄 .env 붙여넣기</label>
+      <textarea id="environmentTextImport" class="environment-import-input" rows="5" placeholder="TOKEN=abc123&#10;DATABASE_URL=mysql://user:pass@host/db"></textarea>
+      <div class="environment-import-actions">
+        <small class="muted">붙여넣으면 자동으로 분리합니다. 각 줄은 첫 번째 '=' 기준으로 나누며, 입력 목록을 교체합니다.</small>
+        <button id="applyEnvironmentTextButton" type="button">입력란에 반영</button>
+      </div>
       <div class="environment-columns"><span>이름</span><span>값</span><span></span></div>
       <div id="environmentRows" class="environment-rows"></div>
       <button id="addEnvironmentButton" type="button">변수 추가</button>
@@ -145,6 +151,7 @@
   <script src="/vendor/xterm/lib/xterm.js"></script>
   <script src="/vendor/xterm-fit/lib/addon-fit.js"></script>
   <script src="/js/projectTerminal.js"></script>
+  <script src="/js/environmentTextParser.js"></script>
   <script src="/js/app.js"></script>
 </body>
 </html>
