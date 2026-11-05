@@ -459,7 +459,7 @@ $("#projectForm").addEventListener("submit", async (event) => {
     if (created.discordSync?.configured && !created.discordSync.ok) {
       alert(`프로젝트는 생성했지만 Discord 전송에 실패했습니다: ${created.discordSync.error || "연결 설정을 확인하세요."}`);
     } else if (created.discordSync && !created.discordSync.configured) {
-      alert("프로젝트는 생성했습니다. Discord 동기화를 사용하려면 패널 루트 .env에 봇 토큰과 채널 ID를 설정하세요.");
+      alert("프로젝트는 생성했습니다. Discord 동기화를 사용하려면 패널 루트 .env에 봇 토큰, 채널 ID, DISCORD_SYNC_ENCRYPTION_KEY를 설정하세요.");
     }
     event.target.reset();
     await refresh();
@@ -902,7 +902,7 @@ $("#environmentForm").addEventListener("submit", async (event) => {
     message.textContent = result.discordSync?.configured && !result.discordSync.ok
       ? `로컬에는 저장했지만 Discord 전송에 실패했습니다: ${result.discordSync.error || "연결 설정을 확인하세요."}`
       : !result.discordSync?.configured
-        ? "로컬에 저장했습니다. Discord 동기화는 패널 루트 .env에 봇 토큰과 채널 ID를 설정하면 활성화됩니다."
+        ? "로컬에 저장했습니다. Discord 동기화는 패널 루트 .env에 봇 토큰, 채널 ID, DISCORD_SYNC_ENCRYPTION_KEY를 설정하면 활성화됩니다."
         : "저장했습니다. 실행 중인 프로젝트에는 중지 후 다시 실행해야 적용됩니다.";
     message.classList.toggle("error", Boolean(result.discordSync?.configured && !result.discordSync.ok));
   } catch (error) {

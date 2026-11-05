@@ -214,11 +214,20 @@ PUT /api/projects/:id/environment
 ```env
 DISCORD_BOT_TOKEN=봇_토큰
 DISCORD_CHANNEL_ID=대상_채널_ID
+DISCORD_SYNC_ENCRYPTION_KEY=32바이트_Base64_암호화_키
 ```
+
+암호화 키는 아래 명령으로 생성해 패널 루트 `.env` 또는 Render Environment Variables에 설정하세요.
+
+```bash
+node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
+```
+
+키는 Discord 봇 토큰과 별도로 보관하고 GitHub에 올리지 마세요. 서버를 재시작하거나 다른 서버에서 스냅샷을 복원할 때도 같은 키가 필요합니다. 키를 잃으면 Discord에 올라간 암호화 스냅샷을 복호화할 수 없습니다.
 
 봇은 대상 채널에서 메시지 보내기, 채널 보기, 메시지 기록 보기 권한이 필요합니다. Discord Developer Portal에서 Message Content Intent도 켜야 시작 시 스냅샷 메시지와 첨부 파일을 찾을 수 있습니다.
 
-프로젝트를 만들거나 설정·저장소·배포·삭제에 변경이 생길 때 전체 프로젝트 설정 JSON을 파일 첨부로 봇이 채널에 게시합니다. 여기에는 `.env` 전체 값도 평문으로 포함됩니다. 서버 시작 시 해당 봇이 작성한 최신 패널 스냅샷을 찾아 로컬 프로젝트 설정과 각 프로젝트의 `.env`에 반영합니다. 파일·코드 디렉터리는 유지합니다. Discord 연결에 실패해도 서버는 로컬 설정으로 시작하며 실패 내용은 서버 로그에 기록됩니다.
+프로젝트를 만들거나 설정·저장소·배포·삭제에 변경이 생길 때 프로젝트 설정과 `.env`를 포함한 스냅샷을 AES-256-GCM으로 암호화해 봇이 채널에 게시합니다. Discord에는 암호문만 저장됩니다. 서버 시작 시 최신 스냅샷을 복호화해 로컬 프로젝트 설정과 각 프로젝트의 `.env`에 반영합니다. 새 스냅샷은 암호화되며, 이전 평문 형식의 스냅샷은 이전 버전과의 호환을 위해 읽을 수 있습니다. Discord 연결 또는 복호화에 실패해도 서버는 로컬 설정으로 시작하며 실패 내용은 서버 로그에 기록됩니다.
 
 ### `src/routes/system.js`
 
