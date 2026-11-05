@@ -49,7 +49,7 @@ input {
   font: inherit;
 }
 
-input:focus { border-color: #8585ff; box-shadow: 0 0 0 3px #8585ff22; }
+input:focus { border-color: #8a8a91; box-shadow: 0 0 0 3px #dcdce122; }
 button { min-height: 46px; margin-top: 8px; border: 0; border-radius: 9px; background: #e8e8ef; color: #111115; font: inherit; font-weight: 700; cursor: pointer; }
 button:disabled { opacity: .6; cursor: wait; }
 .error { min-height: 20px; margin: 4px 0 0; color: #ff8181; font-size: 13px; }
