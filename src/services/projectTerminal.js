@@ -7,6 +7,7 @@ import { getProject, getProjectDirectory } from "./projectManager.js";
 import { readProjectEnvironment } from "./projectEnvironment.js";
 import { isAuthenticated } from "./authentication.js";
 import { isProjectLocked } from "../utils/projectOperationLock.js";
+import { createProjectRuntimeEnvironment } from "../utils/projectRuntimeEnvironment.js";
 
 const sessions = new Map();
 const MAX_BUFFER = 256 * 1024;
@@ -38,7 +39,9 @@ export async function createProjectTerminal(projectId) {
 
   const cwd = getProjectDirectory(projectId);
   const variables = await readProjectEnvironment(cwd);
-  const env = { ...process.env, ...Object.fromEntries(variables.map(({ key, value }) => [key, value])) };
+  const env = createProjectRuntimeEnvironment(
+    Object.fromEntries(variables.map(({ key, value }) => [key, value]))
+  );
   const isWindows = process.platform === "win32";
   const shell = isWindows ? (process.env.COMSPEC || "powershell.exe") : (process.env.SHELL || "/bin/bash");
   const args = isWindows && /powershell/i.test(shell) ? ["-NoLogo", "-NoExit"] : [];
