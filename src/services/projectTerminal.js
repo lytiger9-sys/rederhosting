@@ -40,7 +40,8 @@ export async function createProjectTerminal(projectId) {
   const cwd = getProjectDirectory(projectId);
   const variables = await readProjectEnvironment(cwd);
   const env = createProjectRuntimeEnvironment(
-    Object.fromEntries(variables.map(({ key, value }) => [key, value]))
+    Object.fromEntries(variables.map(({ key, value }) => [key, value])),
+    cwd
   );
   const isWindows = process.platform === "win32";
   const shell = isWindows ? (process.env.COMSPEC || "powershell.exe") : (process.env.SHELL || "/bin/bash");
