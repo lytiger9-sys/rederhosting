@@ -75,11 +75,15 @@ export function startResourceMonitor() {
   refresh();
   refreshPublicIp();
 
-  setInterval(() => {
+  const statsTimer = setInterval(() => {
     refresh();
     refreshProcessUsage();
   }, 2000);
-  setInterval(refreshPublicIp, 10 * 60 * 1000);
+  const publicIpTimer = setInterval(refreshPublicIp, 10 * 60 * 1000);
+  return () => {
+    clearInterval(statsTimer);
+    clearInterval(publicIpTimer);
+  };
 }
 
 export function getSystemStats() {

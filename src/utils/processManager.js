@@ -10,7 +10,7 @@ export function getProcess(id) {
 
 export function startProcess(id, command, cwd, { env = {}, onExit, onError } = {}) {
   if (processes.has(id)) {
-    throw new Error("Project is already running.");
+    throw new Error("프로젝트 프로세스가 이미 실행 중입니다.");
   }
 
   const child = spawn(command, {
@@ -22,7 +22,6 @@ export function startProcess(id, command, cwd, { env = {}, onExit, onError } = {
   });
 
   processes.set(id, child);
-  appendProjectLog(id, `실행 시작: ${command}`).catch(() => {});
   captureOutput(id, child);
 
   const removeProcess = () => {
@@ -78,9 +77,11 @@ export function waitForProcessStartup(child, graceMs = 1500) {
   });
 }
 
-export function runProjectCommand(id, command, cwd, { env = {} } = {}) {
-  if (!command?.trim()) return Promise.resolve({ code: 0, skipped: true });
-  if (processes.has(id)) throw new Error("Project already has an active process.");
+export async function runProjectCommand(id, command, cwd, { env = {} } = {}) {
+  if (!command?.trim()) return { code: 0, skipped: true };
+  if (processes.has(id)) throw new Error("프로젝트의 다른 프로세스가 실행 중입니다.");
+
+  await appendProjectLog(id, `빌드 명령 실행: ${command}`, "BUILD");
 
   const child = spawn(command, {
     cwd,
@@ -90,7 +91,6 @@ export function runProjectCommand(id, command, cwd, { env = {} } = {}) {
     env: createProjectRuntimeEnvironment(env, cwd)
   });
   processes.set(id, child);
-  appendProjectLog(id, `빌드 시작: ${command}`, "BUILD").catch(() => {});
   captureOutput(id, child, { stdoutLevel: "BUILD", stderrLevel: "BUILD_ERR" });
 
   return new Promise((resolve, reject) => {
@@ -174,4 +174,10 @@ export async function stopProcessAndWait(id, timeoutMs = 10000) {
     child.once("error", onError);
     if (!stopProcess(id)) finish(child.exitCode !== null || child.signalCode !== null);
   });
+}
+
+export async function stopAllProcessesAndWait() {
+  const projectIds = [...processes.keys()];
+  const results = await Promise.all(projectIds.map((id) => stopProcessAndWait(id)));
+  return results.every(Boolean);
 }

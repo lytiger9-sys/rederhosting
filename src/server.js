@@ -7,10 +7,11 @@ import projectsRouter from "./routes/projects.js";
 import systemRouter from "./routes/system.js";
 import authenticationRouter from "./routes/authentication.js";
 import { ensureStorage, syncProjectSettingsFromDiscord } from "./services/projectManager.js";
+import { stopAllProcessesAndWait } from "./utils/processManager.js";
 import { startResourceMonitor } from "./services/resourceMonitor.js";
 import { requireLogin, validateAuthConfiguration } from "./services/authentication.js";
 import { proxyProjectRequest, proxyProjectUpgrade } from "./services/projectProxy.js";
-import { handleProjectTerminalUpgrade } from "./services/projectTerminal.js";
+import { closeAllProjectTerminals, handleProjectTerminalUpgrade } from "./services/projectTerminal.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -48,7 +49,7 @@ app.use((error, _req, res, next) => {
 validateAuthConfiguration();
 await ensureStorage();
 await syncProjectSettingsFromDiscord();
-startResourceMonitor();
+const stopResourceMonitor = startResourceMonitor();
 
 const server = app.listen(port, () => {
   console.log(`Hosting panel running on port ${port}`);
@@ -56,3 +57,27 @@ const server = app.listen(port, () => {
 server.on("upgrade", (request, socket, head) => {
   if (!handleProjectTerminalUpgrade(request, socket, head)) proxyProjectUpgrade(request, socket, head);
 });
+
+let shuttingDown = false;
+async function shutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.info(`패널 종료 중 (${signal}): 실행 중인 프로젝트를 중지합니다.`);
+
+  const forceCloseTimer = setTimeout(() => server.closeAllConnections(), 15000);
+  forceCloseTimer.unref();
+  try {
+    closeAllProjectTerminals();
+    await stopAllProcessesAndWait();
+  } catch (error) {
+    console.error(`프로젝트 종료 중 오류: ${error.message}`);
+  }
+  stopResourceMonitor();
+  server.close(() => {
+    clearTimeout(forceCloseTimer);
+    console.info("호스팅 패널이 종료되었습니다.");
+  });
+}
+
+process.once("SIGINT", () => { void shutdown("SIGINT"); });
+process.once("SIGTERM", () => { void shutdown("SIGTERM"); });

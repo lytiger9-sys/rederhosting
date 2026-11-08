@@ -120,7 +120,8 @@ function renderProjectCard(project, expanded = false) {
   const message = operation?.pending ? operation.message : (operation?.message || project.operationMessage || "");
   const statusIsError = ["start_failed", "crashed", "stop_failed"].includes(project.status);
   const feedbackTone = operation?.tone || (statusIsError ? "error" : "");
-  const busy = Boolean(operation?.pending);
+  const statusBusy = ["starting", "stopping", "deploying"].includes(project.status);
+  const busy = Boolean(operation?.pending) || statusBusy;
   const canStop = ["running", "starting", "stopping", "stop_failed"].includes(project.status);
   const startLabel = project.status === "running" ? "실행 중" :
     project.status === "starting" ? "시작 중..." :
@@ -146,7 +147,7 @@ function renderProjectCard(project, expanded = false) {
       <div class="project-actions">
         <button type="button" data-action="files" data-project-id="${escapeHtml(project.id)}" ${busy ? "disabled" : ""}>소스 파일</button>
         <button type="button" data-action="deploy" data-project-id="${escapeHtml(project.id)}" ${busy ? "disabled" : ""}>배포하기</button>
-        <button type="button" data-action="logs" data-project-id="${escapeHtml(project.id)}" ${busy ? "disabled" : ""}>로그 보기</button>
+        <button type="button" data-action="logs" data-project-id="${escapeHtml(project.id)}">로그 보기</button>
         <button type="button" data-action="terminal" data-project-id="${escapeHtml(project.id)}" ${busy ? "disabled" : ""}>터미널</button>
         <button type="button" data-action="start" data-project-id="${escapeHtml(project.id)}" ${busy || ["running", "starting"].includes(project.status) ? "disabled" : ""}>${startLabel}</button>
         <button type="button" data-action="stop" data-project-id="${escapeHtml(project.id)}" ${busy || !canStop ? "disabled" : ""}>${project.status === "stopping" ? "중지 중..." : "중지"}</button>

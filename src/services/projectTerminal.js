@@ -22,6 +22,11 @@ function removeSession(session) {
   if (sessions.get(session.projectId) !== session) return;
   sessions.delete(session.projectId);
   try { session.terminal.kill(); } catch {}
+  try {
+    if (session.socket && session.socket.readyState === session.socket.OPEN) {
+      session.socket.close(1001, "Project terminal closed");
+    }
+  } catch {}
 }
 
 export async function createProjectTerminal(projectId) {
@@ -90,6 +95,10 @@ export function closeProjectTerminalForProject(projectId) {
   if (!session) return false;
   removeSession(session);
   return true;
+}
+
+export function closeAllProjectTerminals() {
+  for (const session of sessions.values()) removeSession(session);
 }
 
 export function handleProjectTerminalUpgrade(request, socket, head) {

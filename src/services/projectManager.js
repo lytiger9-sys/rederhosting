@@ -414,13 +414,18 @@ export async function startProject(id, { operationLockAlreadyHeld = false } = {}
   const project = await readMetadata(id);
 
   if (!operationLockAlreadyHeld && isProjectLocked(id)) {
-    throw new Error("A project operation is already in progress.");
-  }
-
-  if (getProcess(id)) {
-    const error = new Error("프로젝트 프로세스가 이미 실행 중입니다.");
+    const error = new Error("프로젝트 작업이 진행 중입니다. 완료된 뒤 다시 실행하세요.");
     error.status = 409;
     throw error;
+  }
+
+  const existingProcess = getProcess(id);
+  if (existingProcess && existingProcess.exitCode === null && existingProcess.signalCode === null) {
+    project.status = "running";
+    project.pid = existingProcess.pid;
+    project.operationMessage = "프로젝트 프로세스가 이미 실행 중입니다.";
+    await writeMetadata(project);
+    return withoutEnvironment(project);
   }
 
   if (!project.startCommand) {
@@ -480,6 +485,7 @@ export async function startProject(id, { operationLockAlreadyHeld = false } = {}
 
   try {
     const environment = await readProjectEnvironment(projectPath(id));
+    await appendProjectLog(id, `실행 명령 실행: ${project.startCommand}`);
     child = startProcess(id, project.startCommand, projectPath(id), {
       env: {
         ...Object.fromEntries(environment.map(({ key, value }) => [key, value])),
