@@ -1,5 +1,6 @@
 import { execFile, spawn } from "node:child_process";
 import { appendProjectLog } from "../services/projectLogs.js";
+import { createProjectRuntimeEnvironment } from "./projectRuntimeEnvironment.js";
 
 const processes = new Map();
 
@@ -17,7 +18,7 @@ export function startProcess(id, command, cwd, { env = {}, onExit, onError } = {
     shell: true,
     detached: process.platform !== "win32",
     stdio: ["ignore", "pipe", "pipe"],
-    env: { ...process.env, ...env }
+    env: createProjectRuntimeEnvironment(env)
   });
 
   processes.set(id, child);
@@ -86,7 +87,7 @@ export function runProjectCommand(id, command, cwd, { env = {} } = {}) {
     shell: true,
     detached: process.platform !== "win32",
     stdio: ["ignore", "pipe", "pipe"],
-    env: { ...process.env, ...env }
+    env: createProjectRuntimeEnvironment(env)
   });
   processes.set(id, child);
   appendProjectLog(id, `빌드 시작: ${command}`, "BUILD").catch(() => {});
