@@ -1,4 +1,5 @@
 import path from "node:path";
+import { createProjectNpmShim } from "./projectNpmShim.js";
 
 const panelOnlyEnvironmentKeys = [
   "PROJECT_ROOT",
@@ -16,8 +17,11 @@ export function createProjectRuntimeEnvironment(projectEnvironment = {}, project
   }
   const environment = { ...runtimeEnvironment, ...projectEnvironment };
   if (projectDirectory) {
-    // Keep npm from walking up into the hosting panel and selecting its package.json.
-    environment.npm_config_prefix = path.resolve(projectDirectory);
+    const npmShimDirectory = createProjectNpmShim(projectDirectory);
+    if (npmShimDirectory) {
+      const pathKey = Object.keys(environment).find((key) => key.toLowerCase() === "path") || "PATH";
+      environment[pathKey] = [npmShimDirectory, environment[pathKey]].filter(Boolean).join(path.delimiter);
+    }
   }
   return environment;
 }
