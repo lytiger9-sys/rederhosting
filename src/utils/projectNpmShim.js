@@ -38,7 +38,9 @@ export function createProjectNpmShim(projectDirectory) {
     const shimPath = path.join(shimDirectory, "npm.cmd");
     const contents = [
       "@echo off",
-      `call ${quoteWindows(npmExecutable)} --prefix ${quoteWindows(projectRoot)} %*`,
+      // The child process already starts in the project directory. Using a
+      // relative prefix avoids corrupting non-ASCII Windows paths in cmd.exe.
+      `call ${quoteWindows(npmExecutable)} --prefix . %*`,
       "exit /b %errorlevel%",
       ""
     ].join("\r\n");
